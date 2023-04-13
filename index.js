@@ -105,9 +105,8 @@ export class Voxel {
 		var { "@attributes" : {x=1, y=1, z=1, type=0, ...attrs}, text="_", ...props } = flatObject
 		this.x=x; this.y=y; this.z=z;
 		this.type=type
-		if (text.length != this.x*this.y*this.z) {text = this.text.repeat(this.x*this.y*this.z)}
 		this.setSize(this.x, this.y, this.z)
-		this.stateString = text
+//		this.stateString = text
 	}
 	get x() { return this["@attributes"].x}
 	set x(v) { this.setSize(v, this.y, this.z); return v }

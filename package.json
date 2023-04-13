@@ -1,0 +1,17 @@
+{
+  "name": "@kgeusens/burr-data",
+  "version": "0.1.4",
+  "description": "Data model capable of loading and producing xmpuzzle style xml.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "npm pack --dry-run",
+    "deploy" : "npm publish --access public"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "fast-xml-parser": "^4.1.4",
+    "zlib": "^1.0.5"
+  }
+}

@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "npm pack --dry-run",
+    "test": "cd test;node test.js",
     "deploy" : "npm publish --access public"
   },
   "author": "",

@@ -102,11 +102,13 @@ export class Voxel {
 	constructor(flatObject = {}) {
 		this.#source=flatObject
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
-		var { "@attributes" : {x=1, y=1, z=1, type=0, ...attrs}, text="_", ...props } = flatObject
+		var { "@attributes" : {x=1, y=1, z=1, type=0, ...attrs}, text, ...props } = flatObject
 		this.x=x; this.y=y; this.z=z;
 		this.type=type
-		this.setSize(this.x, this.y, this.z)
-//		this.stateString = text
+		this.setSize(x, y, z)
+		// initialize the state with the provided text string
+		if (!text) text = "_".repeat(this.x*this.y*this.z)
+		this.stateString = text
 	}
 	get x() { return this["@attributes"].x}
 	set x(v) { this.setSize(v, this.y, this.z); return v }
@@ -132,7 +134,7 @@ export class Voxel {
 		this.text=this.stateString
 	}
 	get stateString() {
-		var ss = ""
+		let ss = ""
 		for (let z=0;z<=this.z-1;z++) {
 			for (let y=0;y<=this.y-1;y++) {
 				for (let x=0;x<=this.x-1;x++) {
@@ -153,6 +155,9 @@ export class Voxel {
 	}
 	set stateString(s) {
 		let colorlessStateString = s.replace(/\d+/g,"")
+		if (colorlessStateString.length != this.x * this.y * this.z) {
+			throw new Error("Voxel state string has wrong size");
+		}
 		this.text=colorlessStateString
 		let tv=0
 		for (let x=0;x<=this.x-1;x++) {
@@ -187,78 +192,88 @@ export class Shape {
 
 export class Problem {
 	#source
-	shapes
+	shapes = { shape: [] }
 	result
 	bitmap
-	solutions
-	constructor(flatObject) {
+	solutions = { solution: [] }
+	"@attributes" = {}
+	text
+	constructor(flatObject = {}) {
 		this.#source = flatObject
-		if (flatObject["@attributes"]) this["@attributes"] = flatObject["@attributes"]
-		if (flatObject.text) this.text = flatObject.text
-		this.shapes = {shape: []}
-		for(let shp of flatObject.shapes.shape) {
+		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
+		var { 
+			"@attributes" : {...attrs}, 
+			text,
+			shapes = { shape: [] },
+			solutions = { solution: [] },
+			...props
+		} = flatObject
+
+		// step 1: process explicit destructured attributes
+		// step 2: process generic other attributes
+		for (let attr in attrs) {
+			this["@attributes"][attr] = attrs[attr]
+		}
+		// step 3: process text content (mostly undefined)
+		this.text = text
+		// step 4: process explicit properties
+		for(let shp of shapes.shape) {
 			this.shapes.shape.push(new Shape(shp))
 		}
-		if (flatObject.result) { 
-			this.result = flatObject.result 
+		for(let sol of solutions.solution) {
+			this.solutions.solution.push(new Solution(sol))
 		}
-		if (flatObject.bitmap) { 
-			this.bitmap = flatObject.bitmap
-		}
-		if(flatObject.solutions) {
-			this.solutions = {solution: []}
-			for(let sol of flatObject.solutions.solution) {
-				this.solutions.solution.push(new Solution(sol))
-			}
+		// step 5: process generic child properties (not used but you never know)
+		for (let prop in props) {
+			this[prop] = props[prop]
 		}
 	}
 }
 
 export class Puzzle {
 	#source
-	gridType
-	colors
-	shapes
-	problems
-	comment
-    constructor(flatObject) {
+	gridType = {"@attributes" : { type : 0 }}
+	colors = {}
+	shapes = { voxel: [] }
+	problems = { problem: [] }
+	comment = {}
+	text
+	"@attributes" = { }
+    constructor(flatObject = {}) {
 		this.#source = flatObject
-		if (!flatObject) { flatObject = {} }
-		if (flatObject["@attributes"]) { 
-			this["@attributes"] = flatObject["@attributes"]
-		} else {
-			this["@attributes"] = { version: 2 }
+		// initialize objects for deep destructuring (has to exist)
+		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
+		// destructure the argument object
+		var { 
+			"@attributes" : {
+				version = 2, // version is mandatory, default 2
+				...attrs}, 
+			text, // should be undefined for Puzzle
+			gridType, // mandatory simple object currently initialized by class
+			colors, // optional
+			shapes = {voxel: []}, // array
+			problems = {problem: []}, // array
+			comment, // optional
+			...props } = flatObject
+
+		// step 1: process explicit destructured attributes
+		this["@attributes"].version = version
+		// step 2: process generic other attributes
+		for (let attr in attrs) {
+			this["@attributes"][attr] = attrs[attr]
 		}
-		if (flatObject.text) this.text = flatObject.text
-		if (flatObject.gridType) {
-			this.gridType = flatObject.gridType 
-		} else {
-			this.gridType = { "@attributes": { type: 0 } }
+		// step 3: process text content (mostly undefined)
+		this.text = text
+		// step 4: process explicit properties
+		for (let vox of shapes.voxel) {
+			this.shapes.voxel.push(new Voxel(vox)) 
 		}
-		this.colors = {}
-		if (flatObject.colors) {
-			this.colors = flatObject.colors
+		for (let pblm of problems.problem) {
+			this.problems.problem.push(new Problem(pblm)) 
 		}
-		this.shapes = {}
-		if (flatObject.shapes) {
-			if(flatObject.shapes.voxel) {
-				this.shapes = {voxel: []}
-				for(let vox of flatObject.shapes.voxel) {
-					this.shapes.voxel.push(new Voxel(vox)) 
-				}
-			}
-		}
-		this.problems = {}
-		if (flatObject.problems) { 
-			if (flatObject.problems.problem) {
-				this.problems = {problem: []}
-				for(let pblm of flatObject.problems.problem) {
-					this.problems.problem.push(new Problem(pblm)) 
-				}
-			}
-		}
-		if (flatObject.comment) {
-			this.comment = flatObject.comment
+		// step 5: process generic child properties (not used but you never know)
+		for (let prop in props) {
+			this[prop] = props[prop]
 		}
     }
 	saveToXML() {

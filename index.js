@@ -163,9 +163,7 @@ export class Solution {
 export class Voxel {
 	#source
 	#state=[]
-	name 
-	weight 
-	"@attributes"={x:1, y:1, z:1, type:0} // hx, hy, hz
+	"@attributes"={x:1, y:1, z:1, type:0} // hx, hy, hz, name, weight
 	text="_"
 	constructor(flatObject = {}) {
 		this.#source=flatObject

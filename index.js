@@ -29,13 +29,25 @@ export class State {
 	dx
 	dy
 	dz
+	"@attributes" = { }
+	text
 	constructor(flatObject) {
-		this.#source = flatObject
-		if (flatObject["@attributes"]) this["@attributes"] = flatObject["@attributes"]
-		if (flatObject.text) this.text = flatObject.text
-		this.dx = flatObject.dx
-		this.dy = flatObject.dy
-		this.dz = flatObject.dz
+		this.#source=flatObject
+		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
+		var { "@attributes" : {...attrs}, text, dx, dy, dz, ...props } = flatObject
+		// step 1: process explicit destructured attributes
+		// step 2: process generic other attributes
+		for (let attr in attrs) {
+			this["@attributes"][attr] = attrs[attr]
+		}
+		// step 3: process text content (mostly undefined)
+		this.text = text
+		// step 4: process explicit properties
+		this.dx = dx; this.dy = dy; this.dz = dz
+		// step 5: process generic child properties (not used but you never know)
+		for (let prop in props) {
+			this[prop] = props[prop]
+		}
 	}
 }
 

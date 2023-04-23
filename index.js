@@ -267,8 +267,9 @@ export class Result {
 	constructor(flatObject) {
 		this.#source=flatObject
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
-		var { "@attributes" : {...attrs}, text, ...props } = flatObject
+		var { "@attributes" : { id = 0, ...attrs}, text, ...props } = flatObject
 		// step 1: process explicit destructured attributes
+		this["@attributes"].id = id
 		// step 2: process generic other attributes
 		for (let attr in attrs) {
 			this["@attributes"][attr] = attrs[attr]
@@ -309,7 +310,7 @@ export class Shape {
 export class Problem {
 	#source
 	shapes = { shape: [] }
-	result
+	result = {}
 	bitmap
 	solutions = { solution: [] }
 	"@attributes" = { } // state, assemblies, solutions, time
@@ -322,6 +323,7 @@ export class Problem {
 			text,
 			shapes = { shape: [] },
 			solutions = { solution: [] },
+			result,
 			...props
 		} = flatObject
 
@@ -339,6 +341,7 @@ export class Problem {
 		for(let sol of solutions.solution) {
 			this.solutions.solution.push(new Solution(sol))
 		}
+		if (result) this.result = new Result(result)
 		// step 5: process generic child properties (not used but you never know)
 		for (let prop in props) {
 			this[prop] = props[prop]

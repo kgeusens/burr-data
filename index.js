@@ -81,15 +81,34 @@ export class Assembly {
 export class Solution {
 	#source
 	assembly
-	separation
+	separation = []
+	"@attributes" = {} // asmNum, solNum
+	text
 	constructor(flatObject) {
-		this.#source = flatObject
-		if (flatObject["@attributes"]) this["@attributes"] = flatObject["@attributes"]
-		if (flatObject.text) this.text = flatObject.text
-		this.assembly = new Assembly(flatObject.assembly)
-		this.separation = []
-		if (Array.isArray(flatObject.separation)) for(let sep of flatObject.separation) {
+		this.#source=flatObject
+		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
+		var { 
+			"@attributes" : {...attrs}, 
+			text, 
+			assembly,
+			separation = [],
+			...props 
+		} = flatObject
+		// step 1: process explicit destructured attributes
+		// step 2: process generic other attributes
+		for (let attr in attrs) {
+			this["@attributes"][attr] = attrs[attr]
+		}
+		// step 3: process text content (mostly undefined)
+		this.text = text
+		// step 4: process explicit properties
+		this.assembly = new Assembly(assembly)
+		for(let sep of separation) {
 			this.separation.push(new Separation(sep))
+		}
+		// step 5: process generic child properties (not used but you never know)
+		for (let prop in props) {
+			this[prop] = props[prop]
 		}
 	}
 }
@@ -97,17 +116,30 @@ export class Solution {
 export class Voxel {
 	#source
 	#state=[]
-	"@attributes"={x:1, y:1, z:1, type:0}
+	name 
+	weight 
+	"@attributes"={x:1, y:1, z:1, type:0} // hx, hy, hz
 	text="_"
 	constructor(flatObject = {}) {
 		this.#source=flatObject
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
 		var { "@attributes" : {x=1, y=1, z=1, type=0, ...attrs}, text, ...props } = flatObject
+		// step 1: process explicit destructured attributes
 		this.x=x; this.y=y; this.z=z;
 		this.type=type
-		this.setSize(x, y, z)
-		// initialize the state with the provided text string
+		// step 2: process generic other attributes
+		for (let attr in attrs) {
+			this["@attributes"][attr] = attrs[attr]
+		}
+		// step 3: process text content (mostly undefined)
 		if (!text) text = "_".repeat(this.x*this.y*this.z)
+		// step 4: process explicit properties
+		// step 5: process generic child properties (not used but you never know)
+		for (let prop in props) {
+			this[prop] = props[prop]
+		}
+
+		this.setSize(x, y, z)
 		this.stateString = text
 	}
 	get x() { return this["@attributes"].x}
@@ -181,12 +213,50 @@ export class Voxel {
 	getVoxelPosition(x, y, z) { return this.#state[x][y][z]}
 }
 
+export class Result {
+	#source
+	id
+	"@attributes" = {}
+	text
+	constructor(flatObject) {
+		this.#source=flatObject
+		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
+		var { "@attributes" : {...attrs}, text, ...props } = flatObject
+		// step 1: process explicit destructured attributes
+		// step 2: process generic other attributes
+		for (let attr in attrs) {
+			this["@attributes"][attr] = attrs[attr]
+		}
+		// step 3: process text content (mostly undefined)
+		this.text = text
+		// step 4: process explicit properties
+		// step 5: process generic child properties (not used but you never know)
+		for (let prop in props) {
+			this[prop] = props[prop]
+		}
+	}
+}
+
 export class Shape {
 	#source
+	"@attributes" = {} //	id, count, min, max, group 
+	text
 	constructor(flatObject) {
-		this.#source = flatObject
-		if (flatObject["@attributes"]) this["@attributes"] = flatObject["@attributes"]
-		if (flatObject.text) this.text = flatObject.text
+		this.#source=flatObject
+		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
+		var { "@attributes" : {...attrs}, text, ...props } = flatObject
+		// step 1: process explicit destructured attributes
+		// step 2: process generic other attributes
+		for (let attr in attrs) {
+			this["@attributes"][attr] = attrs[attr]
+		}
+		// step 3: process text content (mostly undefined)
+		this.text = text
+		// step 4: process explicit properties
+		// step 5: process generic child properties (not used but you never know)
+		for (let prop in props) {
+			this[prop] = props[prop]
+		}
 	}
 }
 
@@ -196,7 +266,7 @@ export class Problem {
 	result
 	bitmap
 	solutions = { solution: [] }
-	"@attributes" = {}
+	"@attributes" = { } // state, assemblies, solutions, time
 	text
 	constructor(flatObject = {}) {
 		this.#source = flatObject
@@ -238,7 +308,7 @@ export class Puzzle {
 	problems = { problem: [] }
 	comment = {}
 	text
-	"@attributes" = { }
+	"@attributes" = { } // version
     constructor(flatObject = {}) {
 		this.#source = flatObject
 		// initialize objects for deep destructuring (has to exist)

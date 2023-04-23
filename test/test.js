@@ -7,7 +7,7 @@ import { readFileSync} from 'fs'
 //console.log(thePuzzle.saveToXML())
 
 // Read a plain text xml file and load it (in the xmpuzzle format)
-const xmpuzzleFile = readFileSync("test.xml");
+const xmpuzzleFile = readFileSync("solved.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 console.log(theXMPuzzle.saveToXML())
 //console.dir(theXMPuzzle, {depth: null})

@@ -50,31 +50,51 @@ export class Pieces {
 
 export class Separation {
 	#source
-	pieces
-	state
-	separation
+	pieces = {}
+	state = []
+	separation = []
+	"@attributes" = {} // state (left or removed)
+	text
 	constructor(flatObject) {
-		this.#source = flatObject
-		if (flatObject["@attributes"]) this["@attributes"] = flatObject["@attributes"]
-		if (flatObject.text) this.text = flatObject.text
-		this.pieces = new Pieces(flatObject.pieces)
-		this.state=[]
-		for(let stat of flatObject.state) {
+		this.#source=flatObject
+		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
+		var { "@attributes" : {...attrs}, text, pieces, state = [], separation = [], ...props } = flatObject
+		// step 1: process explicit destructured attributes
+		// step 2: process generic other attributes
+		for (let attr in attrs) {
+			this["@attributes"][attr] = attrs[attr]
+		}
+		// step 3: process text content (mostly undefined)
+		this.text = text
+		// step 4: process explicit properties
+		this.pieces = new Pieces(pieces)
+		for(let stat of state) {
 			this.state.push(new State(stat))
 		}
-		this.separation = []
-		if (Array.isArray(flatObject.separation)) for(let sep of flatObject.separation) {
+		for(let sep of separation) {
 			this.separation.push(new Separation(sep))
+		}
+		// step 5: process generic child properties (not used but you never know)
+		for (let prop in props) {
+			this[prop] = props[prop]
 		}
 	}
 }
 
 export class Assembly {
 	#source
+	"@attributes" = {}
+	text
 	constructor(flatObject) {
-		this.#source = flatObject
-		if (flatObject["@attributes"]) this["@attributes"] = flatObject["@attributes"]
-		if (flatObject.text) this.text = flatObject.text
+		this.#source=flatObject
+		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
+		var { 
+			"@attributes" : {...attrs}, 
+			text, 
+			...props 
+		} = flatObject
+		// step 3: process text content
+		this.text = text
 	}
 }
 

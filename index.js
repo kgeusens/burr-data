@@ -262,8 +262,7 @@ export class Voxel {
 
 export class Result {
 	#source
-	id
-	"@attributes" = {}
+	"@attributes" = {} // id
 	text
 	constructor(flatObject) {
 		this.#source=flatObject

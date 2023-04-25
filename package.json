@@ -6,12 +6,11 @@
   "type": "module",
   "scripts": {
     "test": "cd test;node test.js",
-    "deploy" : "npm publish --access public"
+    "deploy": "npm publish --access public"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "fast-xml-parser": "^4.1.4",
-    "zlib": "^1.0.5"
+    "fast-xml-parser": "^4.1.4"
   }
 }

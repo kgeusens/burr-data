@@ -1,5 +1,4 @@
 import {XMLBuilder, XMLParser} from 'fast-xml-parser';
-import {gunzipSync} from 'zlib'
 
 const XMLAlwaysArrayName = [
 	"voxel",
@@ -399,12 +398,6 @@ export class Puzzle {
 	}
 	static puzzleFromXML(xml) {
 		const parser = new XMLParser(XMLoptions);
-		var result = parser.parse(xml)
-		return new Puzzle(result.puzzle)
-	}
-	static puzzleFromXMPuzzle(xmpuzzle) {
-		const parser = new XMLParser(XMLoptions);
-		const xml = gunzipSync(xmpuzzle)
 		var result = parser.parse(xml)
 		return new Puzzle(result.puzzle)
 	}

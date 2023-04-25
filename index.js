@@ -272,7 +272,11 @@ export class Voxel {
 			}
 		}
 	}
-	getVoxelPosition(x, y, z) { return this.#state[x][y][z]}
+	getVoxelPosition(x, y, z) { 
+		var s = this.#state[x][y][z]
+		var i = this.#state[x][y][z].state
+		return s
+	}
 }
 
 export class Result {

@@ -159,6 +159,24 @@ export class Solution {
 	}
 }
 
+export class VoxelPosition {
+	#state = {state:0}
+	constructor(flatObject = {}) {
+		var { state = 0, color } = flatObject
+	}
+	get state() { return this.#state.state }
+	set state(s) { 
+		this.#state.state = s
+		return s
+	}
+	set color(c) {
+		this.#state.color = c
+	}
+	get color() {
+		return this.#state.color
+	}
+} // end class VoxelPositionState
+
 export class Voxel {
 	#source
 	#state=[]
@@ -203,7 +221,7 @@ export class Voxel {
 			for (let y=0;y<=this.y-1;y++) {
 				if (this.#state[x][y] == undefined) this.#state[x][y]=[];
 				for (let z=0;z<=this.z-1;z++) {
-					if (this.#state[x][y][z] == undefined) this.#state[x][y][z]={state:0}
+					if (this.#state[x][y][z] == undefined) this.#state[x][y][z]=new VoxelPosition()
 				}
 			}
 		}
@@ -254,7 +272,7 @@ export class Voxel {
 			}
 		}
 	}
-	getVoxelPosition(x, y, z) { return this.#state[x][y][z]}
+	getVoxelPosition(x, y, z) { return this._state[x][y][z]}
 }
 
 export class Result {

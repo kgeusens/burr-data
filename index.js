@@ -272,7 +272,7 @@ export class Voxel {
 			}
 		}
 	}
-	getVoxelPosition(x, y, z) { return this._state[x][y][z]}
+	getVoxelPosition(x, y, z) { return this.#state[x][y][z]}
 }
 
 export class Result {

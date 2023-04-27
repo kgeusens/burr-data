@@ -203,6 +203,8 @@ export class Voxel {
 	set z(v) { this.setSize(this.x, this.y, v); return v }
 	get type() { return this["@attributes"].type}
 	set type(v) { this["@attributes"].type = v; return v }
+	get name() { return this["@attributes"].name }
+	set name(n) { this["@attributes"].name = n; return n}
 	setSize(x, y, z) { 
 		this["@attributes"].x = x
 		this["@attributes"].y = y
@@ -354,7 +356,6 @@ export class Problem {
 }
 
 export class Puzzle {
-	#source
 	gridType = {"@attributes" : { type : 0 }}
 	colors = {}
 	shapes = { voxel: [] }
@@ -363,7 +364,6 @@ export class Puzzle {
 	text
 	"@attributes" = { } // version
     constructor(flatObject = {}) {
-		this.#source = flatObject
 		// initialize objects for deep destructuring (has to exist)
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
 		// destructure the argument object

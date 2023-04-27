@@ -15,9 +15,10 @@ import { readFileSync} from 'fs'
 
 // Build an empty puzzle object and test some methods
 const emptyPuzzle = new DATA.Puzzle()
-//emptyPuzzle.addShape({ "@attributes" : {x: 1, y: 2, z: 3}})
+emptyPuzzle.addShape({ "@attributes" : {x: 1, y: 2, z: 3}})
 emptyPuzzle.addShape()
-// emptyPuzzle.getShape(1).setSize(5, 2, 3)
+emptyPuzzle.getShape(1).clone(emptyPuzzle.getShape(0))
+emptyPuzzle.getShape(0).setSize(2, 3, 4)
 console.dir(emptyPuzzle, {depth: null})
-//console.log(emptyPuzzle.saveToXML())
+console.log(emptyPuzzle.saveToXML())
 

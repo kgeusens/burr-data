@@ -191,7 +191,6 @@ export class Voxel {
 		for (let prop in props) {
 			this[prop] = props[prop]
 		}
-
 		this.setSize(x, y, z)
 		this.stateString = text
 	}
@@ -267,6 +266,17 @@ export class Voxel {
 	}
 	getVoxelPosition(x, y, z) { 
 		if (x < this.x && y < this.y && z < this.z ) return this.private.state[x][y][z]
+	}
+	clone(orig) {
+		var { "@attributes" : { ...attrs}, ...props } = orig
+		for (let attr in attrs) {
+			this["@attributes"][attr] = attrs[attr]
+		}
+		for (let prop in props) {
+			this[prop] = props[prop]
+		}
+		this.setSize(this.x, this.y, this.z)
+		this.stateString = this.text
 	}
 }
 

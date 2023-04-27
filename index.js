@@ -20,18 +20,17 @@ const XMLoptions = {
 	attributeNamePrefix: '',
   	isArray: (name, jpath, isLeafNode, isAttribute) => { 
 		if( XMLAlwaysArrayName.indexOf(name) !== -1) return true;
-  	}
+  	},
+	updateTag: (tagname, jPath, attrs) => { if (tagname === "private") return false}
 }
 
 export class State {
-	#source
 	dx
 	dy
 	dz
 	"@attributes" = { }
 	text
 	constructor(flatObject) {
-		this.#source=flatObject
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
 		var { "@attributes" : {...attrs}, text, dx, dy, dz, ...props } = flatObject
 		// step 1: process explicit destructured attributes
@@ -51,11 +50,9 @@ export class State {
 }
 
 export class Pieces {
-	#source
 	"@attributes" = { count : 0 }
 	text = ""
 	constructor(flatObject) {
-		this.#source=flatObject
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
 		var { "@attributes" : {count = 0, ...attrs}, text = "", ...props } = flatObject
 		// step 1: process explicit destructured attributes
@@ -75,14 +72,12 @@ export class Pieces {
 }
 
 export class Separation {
-	#source
 	pieces = {}
 	state = []
 	separation = []
 	"@attributes" = {} // state (left or removed)
 	text
 	constructor(flatObject) {
-		this.#source=flatObject
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
 		var { "@attributes" : {...attrs}, text, pieces, state = [], separation = [], ...props } = flatObject
 		// step 1: process explicit destructured attributes
@@ -108,11 +103,9 @@ export class Separation {
 }
 
 export class Assembly {
-	#source
 	"@attributes" = {}
 	text
 	constructor(flatObject) {
-		this.#source=flatObject
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
 		var { 
 			"@attributes" : {...attrs}, 
@@ -125,13 +118,11 @@ export class Assembly {
 }
 
 export class Solution {
-	#source
 	assembly
 	separation = []
 	"@attributes" = {} // asmNum, solNum
 	text
 	constructor(flatObject) {
-		this.#source=flatObject
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
 		var { 
 			"@attributes" : {...attrs}, 
@@ -160,30 +151,30 @@ export class Solution {
 }
 
 export class VoxelPosition {
-	#state = {state:0}
+	private = { state: { state: 0 } }
 	constructor(flatObject = {}) {
 		var { state = 0, color } = flatObject
+		this.private.state.state = state
+		this.private.state.color = color
 	}
-	get state() { return this.#state.state }
+	get state() { return this.private.state.state }
 	set state(s) { 
-		this.#state.state = s
+		this.private.state.state = s
 		return s
 	}
 	set color(c) {
-		this.#state.color = c
+		this.private.state.color = c
 	}
 	get color() {
-		return this.#state.color
+		return this.private.state.color
 	}
 } // end class VoxelPositionState
 
 export class Voxel {
-	#source
-	#state=[]
+	private = { state: [] }
 	"@attributes"={x:1, y:1, z:1, type:0} // hx, hy, hz, name, weight
 	text="_"
 	constructor(flatObject = {}) {
-		this.#source=flatObject
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
 		var { "@attributes" : {x=1, y=1, z=1, type=0, ...attrs}, text, ...props } = flatObject
 		// step 1: process explicit destructured attributes
@@ -217,11 +208,11 @@ export class Voxel {
 		this["@attributes"].y = y
 		this["@attributes"].z = z
 		for (let x=0;x<=this.x-1;x++) {
-			if (this.#state[x] == undefined) this.#state[x]=[];
+			if (this.private.state[x] == undefined) this.private.state[x]=[];
 			for (let y=0;y<=this.y-1;y++) {
-				if (this.#state[x][y] == undefined) this.#state[x][y]=[];
+				if (this.private.state[x][y] == undefined) this.private.state[x][y]=[];
 				for (let z=0;z<=this.z-1;z++) {
-					if (this.#state[x][y][z] == undefined) this.#state[x][y][z]=new VoxelPosition()
+					if (this.private.state[x][y][z] == undefined) this.private.state[x][y][z]=new VoxelPosition()
 				}
 			}
 		}
@@ -232,7 +223,7 @@ export class Voxel {
 		for (let z=0;z<=this.z-1;z++) {
 			for (let y=0;y<=this.y-1;y++) {
 				for (let x=0;x<=this.x-1;x++) {
-					switch(this.#state[x][y][z].state) {
+					switch(this.private.state[x][y][z].state) {
 						case 0:
 							ss+="_"
 							break;
@@ -260,31 +251,29 @@ export class Voxel {
 					tv=colorlessStateString[x + y*this.x + z*this.x*this.y]
 					switch(tv) {
 						case "+":
-							this.#state[x][y][z].state=2
+							this.private.state[x][y][z].state=2
 							break;
 						case "#":
-							this.#state[x][y][z].state=1
+							this.private.state[x][y][z].state=1
 							break;
 						default:
-							this.#state[x][y][z].state=0
+							this.private.state[x][y][z].state=0
 					}
 				}
 			}
 		}
 	}
 	getVoxelPosition(x, y, z) { 
-		var s = this.#state[x][y][z]
-		var i = this.#state[x][y][z].state
+		var s = this.private.state[x][y][z]
+		var i = this.private.state[x][y][z].state
 		return s
 	}
 }
 
 export class Result {
-	#source
 	"@attributes" = {} // id
 	text
 	constructor(flatObject) {
-		this.#source=flatObject
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
 		var { "@attributes" : { id = 0, ...attrs}, text, ...props } = flatObject
 		// step 1: process explicit destructured attributes
@@ -304,11 +293,9 @@ export class Result {
 }
 
 export class Shape {
-	#source
 	"@attributes" = {} //	id, count, min, max, group 
 	text
 	constructor(flatObject) {
-		this.#source=flatObject
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
 		var { "@attributes" : {...attrs}, text, ...props } = flatObject
 		// step 1: process explicit destructured attributes
@@ -327,7 +314,6 @@ export class Shape {
 }
 
 export class Problem {
-	#source
 	shapes = { shape: [] }
 	result = {}
 	bitmap
@@ -335,7 +321,6 @@ export class Problem {
 	"@attributes" = { } // state, assemblies, solutions, time
 	text
 	constructor(flatObject = {}) {
-		this.#source = flatObject
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
 		var { 
 			"@attributes" : {...attrs}, 
@@ -416,7 +401,10 @@ export class Puzzle {
     }
 	saveToXML() {
 		const builder = new XMLBuilder(XMLoptions)
-		return builder.build({ puzzle: this })
+		const parser = new XMLParser(XMLoptions)
+		const tmpXML = builder.build({ puzzle: this })
+		const cleanObject = parser.parse(tmpXML)
+		return builder.build(cleanObject)
 	}
 	static puzzleFromXML(xml) {
 		const parser = new XMLParser(XMLoptions);

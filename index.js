@@ -204,6 +204,7 @@ export class Voxel {
 	set type(v) { this["@attributes"].type = v; return v }
 	get name() { return this["@attributes"].name }
 	set name(n) { this["@attributes"].name = n; return n}
+	get volume() { return this.x * this.y * this.z }
 	setSize(x, y, z) { 
 		this["@attributes"].x = x
 		this["@attributes"].y = y
@@ -407,6 +408,7 @@ export class Puzzle {
 			this[prop] = props[prop]
 		}
     }
+	get largestShape() { return this.shapes.voxel.reduce((result, item) => {if (item.volume >= result.volume) { return item } else return result})}
 	saveToXML() {
 		const builder = new XMLBuilder(XMLoptions)
 		const parser = new XMLParser(XMLoptions)

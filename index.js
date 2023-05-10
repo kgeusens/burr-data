@@ -268,7 +268,7 @@ export class Voxel {
 	getVoxelPosition(x, y, z) { 
 		if (x < this.x && y < this.y && z < this.z ) return this.private.state[x][y][z]
 	}
-	getVoxelState(x,y,z) { vp=this.getVoxelPosition(x,y,z); return vp? vp.state : 0 }
+	getVoxelState(x,y,z) { let vp=this.getVoxelPosition(x,y,z); return vp? vp.state : 0 }
 	setVoxelState(x,y,z,s) { this.getVoxelPosition(x,y,z).state=s }
 	clone(orig) {
 		var { "@attributes" : { ...attrs}, ...props } = orig

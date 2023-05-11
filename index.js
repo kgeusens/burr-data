@@ -425,8 +425,7 @@ export class Puzzle {
 	}
 	getShape(idx) { return this.shapes.voxel[idx] }
 	deleteShape(idx) {
-		console.log(idx)
-		if ( (idx >= 0) && (idx < this.shapes.voxel.length) ) return this.shapes.voxel.splice(idx,idx+1)
+		if ( (idx >= 0) && (idx < this.shapes.voxel.length) ) return this.shapes.voxel.splice(idx,1)
 	 }
 	addShape(obj) { 
 		let newVoxel = new Voxel(obj)

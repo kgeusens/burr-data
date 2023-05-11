@@ -7,9 +7,10 @@ import { readFileSync} from 'fs'
 //console.log(thePuzzle.saveToXML())
 
 // Read a plain text xml file and load it (in the xmpuzzle format)
-//const xmpuzzleFile = readFileSync("test.xml");
-//const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
-//console.log(theXMPuzzle.saveToXML())
+const xmpuzzleFile = readFileSync("test.xml");
+const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
+theXMPuzzle.deleteShape(1)
+console.log(theXMPuzzle.saveToXML())
 //console.log(theXMPuzzle.shapes.voxel[1].stateString)
 //console.dir(theXMPuzzle, {depth: null})
 //console.log(theXMPuzzle.largestShape)

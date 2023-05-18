@@ -266,7 +266,7 @@ export class Voxel {
 		}
 	}
 	getVoxelPosition(x, y, z) { 
-		if (x < this.x && y < this.y && z < this.z ) return this.private.state[x][y][z]
+		if ( x >= 0 && y >=0 && z >= 0 && x < this.x && y < this.y && z < this.z ) return this.private.state[x][y][z]
 	}
 	getVoxelState(x,y,z) { let vp=this.getVoxelPosition(x,y,z); return vp? vp.state : 0 }
 	setVoxelState(x,y,z,s) { this.getVoxelPosition(x,y,z).state=s }

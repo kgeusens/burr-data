@@ -286,6 +286,7 @@ export class Voxel {
 export class Result {
 	"@attributes" = {} // id
 	text
+	get id() { return this["@attributes"].id }
 	constructor(flatObject) {
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
 		var { "@attributes" : { id = 0, ...attrs}, text, ...props } = flatObject
@@ -308,6 +309,11 @@ export class Result {
 export class Shape {
 	"@attributes" = {} //	id, count, min, max, group 
 	text
+	get id() { return this["@attributes"].id }
+	get count() { return this["@attributes"].count }
+	get min() { return this["@attributes"].min }
+	get max() { return this["@attributes"].max }
+	get group() { return this["@attributes"].group }
 	constructor(flatObject) {
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
 		var { "@attributes" : {...attrs}, text, ...props } = flatObject

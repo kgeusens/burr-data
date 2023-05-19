@@ -204,6 +204,14 @@ export class Voxel {
 	set type(v) { this["@attributes"].type = v; return v }
 	get name() { return this["@attributes"].name }
 	set name(n) { this["@attributes"].name = n; return n}
+	get weight() { 
+		let w=this["@attributes"].weight
+		return (w!=undefined)?w:1
+	}
+	set weight(w) { 
+		this["@attributes"].weight = w
+		if (w==1) delete this["@attributes"].weight
+	} 
 	get volume() { return this.x * this.y * this.z }
 	setSize(x, y, z) { 
 		this["@attributes"].x = x

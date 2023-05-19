@@ -321,7 +321,14 @@ export class Shape {
 	}
 	get min() { return this["@attributes"].min }
 	get max() { return this["@attributes"].max }
-	get group() { return this["@attributes"].group }
+	get group() { 
+		let g=this["@attributes"].group
+		return (g!=undefined)?g:0
+	}
+	set group(g) { 
+		this["@attributes"].group = g
+		if (g==0) delete this["@attributes"].group
+	} 
 	constructor(flatObject = {}) {
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
 		var { "@attributes" : {count = 0, ...attrs}, text, ...props } = flatObject

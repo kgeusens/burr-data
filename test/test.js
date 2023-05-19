@@ -7,12 +7,13 @@ import { readFileSync} from 'fs'
 //console.log(thePuzzle.saveToXML())
 
 // Read a plain text xml file and load it (in the xmpuzzle format)
-const xmpuzzleFile = readFileSync("solved.xml");
+const xmpuzzleFile = readFileSync("unsolved.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
-//console.log(theXMPuzzle.saveToXML())
+theXMPuzzle.problems.problem[0].shapes.shape[0].group=0
+theXMPuzzle.problems.problem[0].shapes.shape[0].group=2
+console.log(theXMPuzzle.saveToXML())
 //console.log(theXMPuzzle.shapes.voxel[1].stateString)
-theXMPuzzle.addProblem()
-console.dir(theXMPuzzle.problems.problem, {depth: null})
+//console.dir(theXMPuzzle, {depth: null})
 //console.log(theXMPuzzle.largestShape)
 
 // Build an empty puzzle object and test some methods

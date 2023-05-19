@@ -467,4 +467,13 @@ export class Puzzle {
 		this.shapes.voxel.push(newVoxel); 
 		return this.shapes.voxel.length - 1
 	}
+	addProblem() {
+		let pbl = new Problem()
+		if (!this.problems.problem) this.problems.problem=[]
+		this.problems.problem.push(pbl)
+		return this.problems.problem.length - 1
+	}
+	deleteProblem(idx) {
+		if ( (idx >= 0) && (idx < this.problems.problem.length) ) return this.problems.problem.splice(idx,1)
+	}
 }

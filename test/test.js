@@ -11,9 +11,7 @@ const xmpuzzleFile = readFileSync("solved.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 //console.log(theXMPuzzle.saveToXML())
 //console.log(theXMPuzzle.shapes.voxel[1].stateString)
-const s=theXMPuzzle.problems.problem[0].getShapeFromId(1)
-s.count=0
-theXMPuzzle.problems.problem[0].setShape(s)
+const s=theXMPuzzle.problems.problem[0].getShapeFromId(7)
 console.dir(theXMPuzzle.problems.problem[0].shapes, {depth: null})
 //console.log(theXMPuzzle.largestShape)
 

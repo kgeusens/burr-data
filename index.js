@@ -383,6 +383,7 @@ export class Problem {
 		if (!s) {
 			s=new Shape()
 			s.id = idx
+			this.shapes.shape.push(s)
 		}
 		return s
 	}

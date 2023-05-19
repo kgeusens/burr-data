@@ -287,6 +287,7 @@ export class Result {
 	"@attributes" = {} // id
 	text
 	get id() { return this["@attributes"].id }
+	set id(val) { this["@attributes"].id = val }
 	constructor(flatObject) {
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
 		var { "@attributes" : { id = 0, ...attrs}, text, ...props } = flatObject

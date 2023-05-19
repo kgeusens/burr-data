@@ -310,14 +310,22 @@ export class Shape {
 	"@attributes" = {} //	id, count, min, max, group 
 	text
 	get id() { return this["@attributes"].id }
-	get count() { return this["@attributes"].count }
+	set id(idx) { this["@attributes"].id = idx }
+	get count() { 
+		let c=this["@attributes"].count 
+		return (c!=undefined)?c:1
+	}
+	set count(c) { 
+		this["@attributes"].count = c
+	}
 	get min() { return this["@attributes"].min }
 	get max() { return this["@attributes"].max }
 	get group() { return this["@attributes"].group }
-	constructor(flatObject) {
+	constructor(flatObject = {}) {
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
-		var { "@attributes" : {...attrs}, text, ...props } = flatObject
+		var { "@attributes" : {count = 0, ...attrs}, text, ...props } = flatObject
 		// step 1: process explicit destructured attributes
+		this.count = count
 		// step 2: process generic other attributes
 		for (let attr in attrs) {
 			this["@attributes"][attr] = attrs[attr]
@@ -368,6 +376,24 @@ export class Problem {
 		// step 5: process generic child properties (not used but you never know)
 		for (let prop in props) {
 			this[prop] = props[prop]
+		}
+	}
+	getShapeFromId(idx) {
+		let s=this.shapes.shape.find((val) => val.id == idx)
+		if (!s) {
+			s=new Shape()
+			s.id = idx
+		}
+		return s
+	}
+	setShape(shp) {
+		let idx=this.shapes.shape.findIndex((val) => val.id == shp.id)
+		if (idx == -1 && shp.count >=0 ) this.shapes.shape.push(shp)
+		else {
+			if (idx >= 0 && shp.count == 0) { 
+				this.shapes.shape.splice(idx,1)
+			}
+			else if ( idx >=0 ) this.shapes.shape[idx] = shp
 		}
 	}
 }

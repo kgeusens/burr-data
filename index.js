@@ -434,8 +434,8 @@ export class Puzzle {
 			text, // should be undefined for Puzzle
 			gridType, // mandatory simple object currently initialized by class
 			colors, // optional
-			shapes = {voxel: []}, // array
-			problems = {problem: []}, // array
+			shapes = {voxel: [new Voxel()]}, // array
+			problems = {problem: [new Problem()]}, // array
 			comment, // optional
 			...props } = flatObject
 

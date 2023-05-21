@@ -194,11 +194,11 @@ export class Voxel {
 		this.setSize(x, y, z)
 		this.stateString = text
 	}
-	get x() { return this["@attributes"].x}
+	get x() { return this["@attributes"].x*1}
 	set x(v) { this.setSize(v, this.y, this.z); return v }
-	get y() { return this["@attributes"].y}
+	get y() { return this["@attributes"].y*1}
 	set y(v) { this.setSize(this.x, v, this.z); return v }
-	get z() { return this["@attributes"].z}
+	get z() { return this["@attributes"].z*1}
 	set z(v) { this.setSize(this.x, this.y, v); return v }
 	get type() { return this["@attributes"].type}
 	set type(v) { this["@attributes"].type = v; return v }

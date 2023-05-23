@@ -47,6 +47,16 @@ export class State {
 			this[prop] = props[prop]
 		}
 	}
+	get memberPosition() {
+		let dx=this.dx.split(" ")
+		let dy=this.dy.split(" ")
+		let dz=this.dz.split(" ")
+		let arr=[]
+		for (let idx in dx) {
+			let position={x: dx[idx], y: dy[idx], z: dz[idx]}
+			arr.push(position)
+		}
+	}
 }
 
 export class Pieces {
@@ -69,13 +79,15 @@ export class Pieces {
 			this[prop] = props[prop]
 		}
 	}
+	get count() { return this["@attributes"].count }
+	get members() { return this.text.split(" ")}
 }
 
 export class Separation {
 	pieces = {}
 	state = []
 	separation = []
-	"@attributes" = {} // state (left or removed)
+	"@attributes" = {} // type (left or removed)
 	text
 	constructor(flatObject) {
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
@@ -100,6 +112,15 @@ export class Separation {
 			this[prop] = props[prop]
 		}
 	}
+	// this.pieces.members returns array of piece numbers e.g. [2,3,5,6]
+	get states() {
+		return this.state
+	}
+	get length() {
+		return this.states.length
+	}
+	//this.states[x].memberPosition returns array of positions
+	//this.states[move].memberPosition[i] is the position of this.pieces.member[i] as {x: 1, y:2, z:5}
 }
 
 export class Assembly {
@@ -399,7 +420,7 @@ export class Problem {
 		if (!s) {
 			s=new Shape()
 			s.id = idx
-			this.shapes.shape.push(s)
+//			this.shapes.shape.push(s)
 		}
 		return s
 	}
@@ -410,7 +431,7 @@ export class Problem {
 			if (idx >= 0 && shp.count == 0) { 
 				this.shapes.shape.splice(idx,1)
 			}
-			else if ( idx >=0 ) this.shapes.shape[idx] = shp
+//			else if ( idx >=0 ) this.shapes.shape[idx] = shp
 		}
 	}
 }

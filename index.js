@@ -171,7 +171,6 @@ export class Separation {
 	//
 	get statePositionsAll() {
 		let a = [...this.statePositions]
-		console.log(this.members)
 		for (let sep of this.separation) {
 			a.push(...sep.statePositionsAll)
 		}

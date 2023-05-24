@@ -11,12 +11,13 @@ const xmpuzzleFile = readFileSync("solved.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 //theXMPuzzle.problems.problem[0].shapes.shape[0].group=0
 //theXMPuzzle.problems.problem[0].shapes.shape[0].group=2
-//console.log(theXMPuzzle.saveToXML())
+console.log(theXMPuzzle.saveToXML())
 //console.log(theXMPuzzle.shapes.voxel[1].stateString)
 //console.dir(theXMPuzzle, {depth: null})
 //console.log(theXMPuzzle.largestShape)
 let sep=theXMPuzzle.problems.problem[0].solutions.solution[0].separation[0]
-console.dir(sep.statePositionsAll, {depth:null})
+console.dir(sep.movePositionsAll, {depth:null})
+console.log(sep.movePositionsAll.length)
 console.dir(sep.stateCountAll, {depth:null})
 
 // Build an empty puzzle object and test some methods

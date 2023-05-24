@@ -154,7 +154,7 @@ export class Separation {
 	// stateCountAll returns a serialized array of the length of the separation tree
 	// stateCountAll = [ "10", "7", "4", "3"] ( instead of 10.7.4.3 )
 	get stateCountAll() {
-		let m = [String(this.length)]
+		let m = [String(this.length - 1)]
 		for (let sep of this.separation) {
 			m.push(...sep.stateCountAll)
 		}
@@ -173,6 +173,21 @@ export class Separation {
 		let a = [...this.statePositions]
 		for (let sep of this.separation) {
 			a.push(...sep.statePositionsAll)
+		}
+		return a
+	}
+	get movePositionsAll() {
+		let a = [...this.statePositions]
+		for (let sep of this.separation) {
+			let spa = sep.movePositionsAll
+			let firstEl=spa.shift()
+			let lastEl=a[a.length-1]
+			for (let idx in this.members) {
+				if (lastEl[idx] === undefined) {
+					lastEl[idx] = firstEl[idx]
+				}
+			}
+			a.push(...spa)
 		}
 		return a
 	}

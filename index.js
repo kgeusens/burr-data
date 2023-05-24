@@ -47,15 +47,18 @@ export class State {
 			this[prop] = props[prop]
 		}
 	}
-	get memberPosition() {
-		let dx=this.dx.split(" ")
-		let dy=this.dy.split(" ")
-		let dz=this.dz.split(" ")
+	get x() { return this.dx.text.split(" ") }
+	get y() { return this.dy.text.split(" ") }
+	get z() { return this.dz.text.split(" ") }
+	get memberPositions() {
+		// returns array of positions, 1 entry per member in the separation
+		// memberPositions[0] = { x: 3, y: 2, z: -1} is position of first piece in sep
 		let arr=[]
-		for (let idx in dx) {
-			let position={x: dx[idx], y: dy[idx], z: dz[idx]}
+		for (let idx in this.x) {
+			let position={x: this.x[idx], y: this.y[idx], z: this.z[idx]}
 			arr.push(position)
 		}
+		return arr
 	}
 }
 
@@ -81,6 +84,7 @@ export class Pieces {
 	}
 	get count() { return this["@attributes"].count }
 	get members() { return this.text.split(" ")}
+	get asString() { return this.text }
 }
 
 export class Separation {
@@ -112,15 +116,67 @@ export class Separation {
 			this[prop] = props[prop]
 		}
 	}
-	// this.pieces.members returns array of piece numbers e.g. [2,3,5,6]
-	get states() {
-		return this.state
+	get statePositions() {
+		// Array of the memberPositions for reach state in the separation
+		// the memberPositions need to be remapped to the piece number of the problem
+		// statePositions[1][2] = empty | { x: 3, y: 5, z:-1 }
+		//              = position of 3d piece in problem, for 2nd state of separation
+		let arr=[]
+		for (let state of this.state) {
+			let memPos = state.memberPositions
+			let piecePos = []
+			for (let idx in memPos) {
+				piecePos[this.members[idx]] = memPos[idx]
+			}
+			arr.push(piecePos)
+		}
+		return arr
 	}
 	get length() {
-		return this.states.length
+		// number of states in this separation
+		return this.state.length
 	}
-	//this.states[x].memberPosition returns array of positions
-	//this.states[move].memberPosition[i] is the position of this.pieces.member[i] as {x: 1, y:2, z:5}
+	get members() {
+		// Array of pieces in this separation
+		return this.pieces.members
+	}
+	get piecelistMap() {
+		let o = {}
+		o[this.pieces.asString] = this
+		return o
+	}
+	// normalized positions as string (first position needs to be "0 0 0")
+	get stateString() {
+
+	}
+	// recursive getters below
+	//
+	// stateCountAll returns a serialized array of the length of the separation tree
+	// stateCountAll = [ "10", "7", "4", "3"] ( instead of 10.7.4.3 )
+	get stateCountAll() {
+		let m = [String(this.length)]
+		for (let sep of this.separation) {
+			m.push(...sep.stateCountAll)
+		}
+		return m
+	}
+	// piecelistMapAll["1 2 5"] = the separation that has pieces "1 2 5" (in the separationtree)
+	get piecelistMapAll() {
+		let o = this.piecelistMap
+		for (let sep of this.separation) {
+			Object.assign(o, sep.piecelistMapAll)
+		}
+		return o
+	}
+	//
+	get statePositionsAll() {
+		let a = [...this.statePositions]
+		console.log(this.members)
+		for (let sep of this.separation) {
+			a.push(...sep.statePositionsAll)
+		}
+		return a
+	}
 }
 
 export class Assembly {

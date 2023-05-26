@@ -21,6 +21,7 @@ let sep=theXMPuzzle.problems.problem[0].solutions.solution[0].separation[0]
 console.dir(sep.movePositionsAll, {depth:null})
 //console.log(sep.movePositionsAll.length)
 console.dir(sep.stateCountAll, {depth:null})
+console.log(theXMPuzzle.problems.problem[0].solutions.solution[0].complexity)
 
 // Build an empty puzzle object and test some methods
 //const emptyPuzzle = new DATA.Puzzle()

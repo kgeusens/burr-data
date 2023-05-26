@@ -239,6 +239,7 @@ export class Solution {
 			this[prop] = props[prop]
 		}
 	}
+	get complexity() { return this.separation[0]?this.separation[0].stateCountAll.join("."):"0"}
 }
 
 export class VoxelPosition {

@@ -55,7 +55,7 @@ export class State {
 		// memberPositions[0] = { x: 3, y: 2, z: -1} is position of first piece in sep
 		let arr=[]
 		for (let idx in this.x) {
-			let position={x: this.x[idx], y: this.y[idx], z: this.z[idx]}
+			let position={x: Number(this.x[idx]), y: Number(this.y[idx]), z: Number(this.z[idx])}
 			arr.push(position)
 		}
 		return arr
@@ -83,7 +83,7 @@ export class Pieces {
 		}
 	}
 	get count() { return this["@attributes"].count }
-	get members() { return this.text.split(" ")}
+	get members() { return this.text.split(" ").map((val) => Number(val))}
 	get asString() { return this.text }
 }
 
@@ -117,7 +117,7 @@ export class Separation {
 		}
 	}
 	get statePositions() {
-		// Array of the memberPositions for reach state in the separation
+		// Array of the memberPositions for each state in the separation
 		// the memberPositions need to be remapped to the piece number of the problem
 		// statePositions[1][2] = empty | { x: 3, y: 5, z:-1 }
 		//              = position of 3d piece in problem, for 2nd state of separation
@@ -183,7 +183,7 @@ export class Separation {
 			let firstEl=spa.shift()
 			let lastEl=a[a.length-1]
 			for (let idx in this.members) {
-				if (lastEl[idx] === undefined) {
+				if ((lastEl[idx] === undefined) && firstEl[idx]) {
 					lastEl[idx] = firstEl[idx]
 				}
 			}

@@ -7,7 +7,7 @@ import { readFileSync} from 'fs'
 //console.log(thePuzzle.saveToXML())
 
 // Read a plain text xml file and load it (in the xmpuzzle format)
-const xmpuzzleFile = readFileSync("solved.xml");
+const xmpuzzleFile = readFileSync("magicDrawer.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 //theXMPuzzle.problems.problem[0].shapes.shape[0].group=0
 //theXMPuzzle.problems.problem[0].shapes.shape[0].group=2
@@ -16,8 +16,10 @@ console.log(theXMPuzzle.saveToXML())
 //console.dir(theXMPuzzle, {depth: null})
 //console.log(theXMPuzzle.largestShape)
 let sep=theXMPuzzle.problems.problem[0].solutions.solution[0].separation[0]
+//console.dir(sep.statePositions, {depth:null})
+//console.dir(sep.statePositionsAll, {depth:null})
 console.dir(sep.movePositionsAll, {depth:null})
-console.log(sep.movePositionsAll.length)
+//console.log(sep.movePositionsAll.length)
 console.dir(sep.stateCountAll, {depth:null})
 
 // Build an empty puzzle object and test some methods

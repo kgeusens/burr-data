@@ -1,5 +1,6 @@
 import * as DATA from '../index.js'
 import { readFileSync} from 'fs'
+import * as TOOLS from '../burrUtils.js'
 
 // Read a test xmpuzzle file and load it (this is the raw file from burrtools)
 //const xmlFile = readFileSync("test.xmpuzzle");
@@ -11,17 +12,19 @@ const xmpuzzleFile = readFileSync("magicDrawer.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 //theXMPuzzle.problems.problem[0].shapes.shape[0].group=0
 //theXMPuzzle.problems.problem[0].shapes.shape[0].group=2
-console.log(theXMPuzzle.saveToXML())
+//console.log(theXMPuzzle.saveToXML())
 //console.log(theXMPuzzle.shapes.voxel[1].stateString)
 //console.dir(theXMPuzzle, {depth: null})
 //console.log(theXMPuzzle.largestShape)
-let sep=theXMPuzzle.problems.problem[0].solutions.solution[0].separation[0]
+//let sep=theXMPuzzle.problems.problem[0].solutions.solution[0].separation[0]
 //console.dir(sep.statePositions, {depth:null})
+//console.log("statePositionsAll")
 //console.dir(sep.statePositionsAll, {depth:null})
-console.dir(sep.movePositionsAll, {depth:null})
+//console.log("movePositionsAll")
+//console.dir(sep.movePositionsAll, {depth:null})
 //console.log(sep.movePositionsAll.length)
-console.dir(sep.stateCountAll, {depth:null})
-console.log(theXMPuzzle.problems.problem[0].solutions.solution[0].complexity)
+//console.dir(sep.stateCountAll, {depth:null})
+//console.log(theXMPuzzle.problems.problem[0].solutions.solution[0].complexity)
 
 // Build an empty puzzle object and test some methods
 //const emptyPuzzle = new DATA.Puzzle()
@@ -32,3 +35,6 @@ console.log(theXMPuzzle.problems.problem[0].solutions.solution[0].complexity)
 //console.dir(emptyPuzzle, {depth: null})
 //console.log(emptyPuzzle.saveToXML())
 
+console.log(TOOLS.pieceColor(0, 0))
+console.log(TOOLS.pieceColor(5, 0))
+console.log(TOOLS.pieceColor(5, 1))

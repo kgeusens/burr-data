@@ -216,7 +216,7 @@ export class Assembly {
 				pieceIdx++
 			}
 			if (assArray.length >= 4) {
-				theMap[pieceIdx] = { position: { x: Number(assArray.shift()), y : Number(assArray.shift()), z: Number(assArray.shift()) }, rotation: Number(assArray.shift()) }
+				theMap[pieceIdx] = { pieceID: Number(pieceIdx), position: { x: Number(assArray.shift()), y : Number(assArray.shift()), z: Number(assArray.shift()) }, rotation: Number(assArray.shift()) }
 				pieceIdx++
 			} else if (assArray.length > 0) { console.log("ERROR", assArray.length); break}
 		}
@@ -632,5 +632,21 @@ export class Puzzle {
 	}
 	deleteProblem(idx) {
 		if ( (idx >= 0) && (idx < this.problems.problem.length) ) return this.problems.problem.splice(idx,1)
+	}
+	getSolutionMap(problemId=0, solutionId=0) {
+		if (!this.problems?.problem) return []
+		let problem = this.problems.problem[problemId]
+		if (!problem?.solutions?.solution) return []
+		let solution = problem.solutions.solution[solutionId]
+		if (!solution) return []
+		let pieceMap = solution.pieceMap
+		let pieceNumbers = solution.pieceNumbers
+		let shapeMap = problem.shapeMap
+		for (let pieceNr of pieceNumbers) {
+			let shapeID = shapeMap[pieceNr]
+			pieceMap[pieceNr].shapeID = shapeID
+			pieceMap[pieceNr].shape = this.shapes.voxel[shapeID]
+		}
+		return pieceMap
 	}
 }

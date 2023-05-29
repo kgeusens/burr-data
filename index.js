@@ -222,6 +222,15 @@ export class Assembly {
 		}
 		return theMap
 	}
+	// return the numbers of the pieces that have a value in the assembly
+	get pieceNumbers() {
+//		console.log("assembly pieceNumbers")
+		let pieces = []
+		for (let i in this.pieceMap) {
+			pieces.push(Number(i))
+		}
+		return pieces
+	}
 }
 
 export class Solution {
@@ -256,6 +265,12 @@ export class Solution {
 		}
 	}
 	get complexity() { return this.separation[0]?this.separation[0].stateCountAll.join("."):"0"}
+	get pieceMap() {
+		return this.assembly.pieceMap
+	}
+	get pieceNumbers() {
+		return this.assembly.pieceNumbers
+	}
 }
 
 export class VoxelPosition {
@@ -532,13 +547,10 @@ export class Problem {
 	get shapeMap() {
 		let theMap = []
 		for (let shape of this.shapes.shape) {
-			if (shape.count || (shape.min == shape.max)) {
-				theMap.push(shape.id) 
-			}
-			else {
-				for (let i=0;i<shape.max;i++) {
-					theMap.push(shape.id) 
-				}
+			let count = shape.count?shape.count:shape.max
+			for (let i = 0; i<count;i++)
+			{
+				theMap.push(Number(shape.id)) 
 			}
 		}
 		return theMap

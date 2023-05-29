@@ -147,7 +147,6 @@ export class Separation {
 	}
 	// normalized positions as string (first position needs to be "0 0 0")
 	get stateString() {
-
 	}
 	// recursive getters below
 	//
@@ -205,6 +204,23 @@ export class Assembly {
 		} = flatObject
 		// step 3: process text content
 		this.text = text
+	}
+	// process the string from the assembly and get position + rotation of pieces
+	get pieceMap() {
+		let assArray = this.text.split(" ")
+		let theMap = []
+		let pieceIdx = 0
+		while (assArray.length > 0) {
+			while (assArray[0] == "x") {
+				assArray.shift()
+				pieceIdx++
+			}
+			if (assArray.length >= 4) {
+				theMap[pieceIdx] = { position: { x: Number(assArray.shift()), y : Number(assArray.shift()), z: Number(assArray.shift()) }, rotation: Number(assArray.shift()) }
+				pieceIdx++
+			} else if (assArray.length > 0) { console.log("ERROR", assArray.length); break}
+		}
+		return theMap
 	}
 }
 
@@ -370,6 +386,16 @@ export class Voxel {
 	}
 	getVoxelState(x,y,z) { let vp=this.getVoxelPosition(x,y,z); return vp? vp.state : 0 }
 	setVoxelState(x,y,z,s) { this.getVoxelPosition(x,y,z).state=s }
+	getWorldMap(id) {
+		let theMap={}
+		for (let x=0;x<this.x;x++) {
+			for (let y=0;y<this.y;y++) { 
+				for (let z=0;z<this.z;z++) { 
+					theMap[[x,y,z].join(" ")] = id
+				}
+			}
+		}
+	}
 	clone(orig) {
 		var { "@attributes" : { ...attrs}, ...props } = orig
 		for (let attr in attrs) {
@@ -491,7 +517,6 @@ export class Problem {
 		if (!s) {
 			s=new Shape()
 			s.id = idx
-//			this.shapes.shape.push(s)
 		}
 		return s
 	}
@@ -502,8 +527,21 @@ export class Problem {
 			if (idx >= 0 && shp.count == 0) { 
 				this.shapes.shape.splice(idx,1)
 			}
-//			else if ( idx >=0 ) this.shapes.shape[idx] = shp
 		}
+	}
+	get shapeMap() {
+		let theMap = []
+		for (let shape of this.shapes.shape) {
+			if (shape.count || (shape.min == shape.max)) {
+				theMap.push(shape.id) 
+			}
+			else {
+				for (let i=0;i<shape.max;i++) {
+					theMap.push(shape.id) 
+				}
+			}
+		}
+		return theMap
 	}
 }
 

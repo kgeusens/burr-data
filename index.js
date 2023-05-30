@@ -274,28 +274,8 @@ export class Solution {
 	}
 }
 
-export class VoxelPosition {
-	private = { state: { state: 0 } }
-	constructor(flatObject = {}) {
-		var { state = 0, color } = flatObject
-		this.private.state.state = state
-		this.private.state.color = color
-	}
-	get state() { return this.private.state.state }
-	set state(s) { 
-		this.private.state.state = s
-		return s
-	}
-	set color(c) {
-		this.private.state.color = c
-	}
-	get color() {
-		return this.private.state.color
-	}
-} // end class VoxelPositionState
-
 export class Voxel {
-	private = { state: [] }
+	private = { state: [], stateMap: {} }
 	"@attributes"={x:1, y:1, z:1, type:0} // hx, hy, hz, name, weight
 	text="_"
 	constructor(flatObject = {}) {
@@ -341,15 +321,6 @@ export class Voxel {
 		this["@attributes"].x = x
 		this["@attributes"].y = y
 		this["@attributes"].z = z
-		for (let x=0;x<=this.x-1;x++) {
-			if (this.private.state[x] == undefined) this.private.state[x]=[];
-			for (let y=0;y<=this.y-1;y++) {
-				if (this.private.state[x][y] == undefined) this.private.state[x][y]=[];
-				for (let z=0;z<=this.z-1;z++) {
-					if (this.private.state[x][y][z] == undefined) this.private.state[x][y][z]=new VoxelPosition()
-				}
-			}
-		}
 		this.text=this.stateString
 	}
 	get stateString() {
@@ -357,7 +328,8 @@ export class Voxel {
 		for (let z=0;z<=this.z-1;z++) {
 			for (let y=0;y<=this.y-1;y++) {
 				for (let x=0;x<=this.x-1;x++) {
-					switch(this.private.state[x][y][z].state) {
+					let state=this.getVoxelState(x, y, z)
+					switch(state) {
 						case 0:
 							ss+="_"
 							break;
@@ -379,29 +351,35 @@ export class Voxel {
 		}
 		this.text=colorlessStateString
 		let tv=0
+		this.private.stateMap={}
 		for (let x=0;x<=this.x-1;x++) {
 			for (let y=0;y<=this.y-1;y++) {
 				for (let z=0;z<=this.z-1;z++) {
 					tv=colorlessStateString[x + y*this.x + z*this.x*this.y]
 					switch(tv) {
 						case "+":
-							this.private.state[x][y][z].state=2
+							this.private.stateMap[[x, y, z].join(" ")]={state: 2}
 							break;
 						case "#":
-							this.private.state[x][y][z].state=1
+							this.private.stateMap[[x, y, z].join(" ")]={state: 1}
 							break;
 						default:
-							this.private.state[x][y][z].state=0
 					}
 				}
 			}
 		}
 	}
-	getVoxelPosition(x, y, z) { 
-		if ( x >= 0 && y >=0 && z >= 0 && x < this.x && y < this.y && z < this.z ) return this.private.state[x][y][z]
+	getVoxelPosition(x, y, z) {
+		return this.private.stateMap[[x, y, z].join(" ")]
 	}
-	getVoxelState(x,y,z) { let vp=this.getVoxelPosition(x,y,z); return vp? vp.state : 0 }
-	setVoxelState(x,y,z,s) { this.getVoxelPosition(x,y,z).state=s }
+	getVoxelState(x,y,z) { 
+		let vp=this.getVoxelPosition(x,y,z); return vp? vp.state : 0 
+	}
+	setVoxelState(x,y,z,s) {
+		let vp=getVoxelPosition(x, y, z)
+		if (!vp) this.private.stateMap[[x, y, z].join(" ")] = {state: s}
+		this.getVoxelPosition(x,y,z).state=s 
+	}
 	getWorldMap(id) {
 		let theMap={}
 		for (let x=0;x<this.x;x++) {

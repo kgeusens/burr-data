@@ -376,7 +376,7 @@ export class Voxel {
 		let vp=this.getVoxelPosition(x,y,z); return vp? vp.state : 0 
 	}
 	setVoxelState(x,y,z,s) {
-		let vp=getVoxelPosition(x, y, z)
+		let vp=this.getVoxelPosition(x, y, z)
 		if (!vp) this.private.stateMap[[x, y, z].join(" ")] = {state: s}
 		this.getVoxelPosition(x,y,z).state=s 
 	}

@@ -16,11 +16,14 @@ const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 //console.log(theXMPuzzle.shapes.voxel[1].stateString)
 //console.dir(theXMPuzzle, {depth: null})
 //console.log(theXMPuzzle.largestShape)
+let voxels = theXMPuzzle.shapes.voxel
 let prob=theXMPuzzle.problems.problem[0]
 console.dir(prob.shapeMap)
-//let sol=prob.solutions.solution[0]
-//console.dir(sol.pieceMap)
-//console.dir(sol.pieceNumbers)
+let sol=prob.solutions.solution[0]
+console.dir(sol.pieceMap)
+console.dir(sol.pieceNumbers)
+//console.dir(sol.separation[0])
+//console.dir(sol.separation[0])
 //let sep=sol.separation[0]
 //console.dir(sep.statePositions, {depth:null})
 //console.log("statePositionsAll")
@@ -30,7 +33,7 @@ console.dir(prob.shapeMap)
 //console.log(sep.movePositionsAll.length)
 //console.dir(sep.stateCountAll, {depth:null})
 //console.log(theXMPuzzle.problems.problem[0].solutions.solution[0].complexity)
-console.dir(theXMPuzzle.getSolutionMap(0,0), { depth: null})
+//console.dir(theXMPuzzle.getSolutionMap(0,0), { depth: null})
 
 // Build an empty puzzle object and test some methods
 //const emptyPuzzle = new DATA.Puzzle()
@@ -40,3 +43,6 @@ console.dir(theXMPuzzle.getSolutionMap(0,0), { depth: null})
 //emptyPuzzle.getShape(0).setSize(2, 3, 4)
 //console.dir(emptyPuzzle, {depth: null})
 //console.log(emptyPuzzle.saveToXML())
+//console.log(TOOLS.rotate({x:1, y:2, z:3}, 1))
+console.dir(voxels[1].getWorldMap("Koen"))
+console.dir(TOOLS.rotate(voxels[1].getWorldMap("Koen"),2))

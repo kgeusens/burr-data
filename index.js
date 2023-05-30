@@ -1,4 +1,5 @@
 import {XMLBuilder, XMLParser} from 'fast-xml-parser';
+import {rotate} from './burrUtils.js'
 
 const XMLAlwaysArrayName = [
 	"voxel",
@@ -406,10 +407,11 @@ export class Voxel {
 		for (let x=0;x<this.x;x++) {
 			for (let y=0;y<this.y;y++) { 
 				for (let z=0;z<this.z;z++) { 
-					theMap[[x,y,z].join(" ")] = id
+					if (this.getVoxelState(x, y, z) == 1) theMap[[x,y,z].join(" ")] = id
 				}
 			}
 		}
+		return theMap
 	}
 	clone(orig) {
 		var { "@attributes" : { ...attrs}, ...props } = orig
@@ -632,21 +634,5 @@ export class Puzzle {
 	}
 	deleteProblem(idx) {
 		if ( (idx >= 0) && (idx < this.problems.problem.length) ) return this.problems.problem.splice(idx,1)
-	}
-	getSolutionMap(problemId=0, solutionId=0) {
-		if (!this.problems?.problem) return []
-		let problem = this.problems.problem[problemId]
-		if (!problem?.solutions?.solution) return []
-		let solution = problem.solutions.solution[solutionId]
-		if (!solution) return []
-		let pieceMap = solution.pieceMap
-		let pieceNumbers = solution.pieceNumbers
-		let shapeMap = problem.shapeMap
-		for (let pieceNr of pieceNumbers) {
-			let shapeID = shapeMap[pieceNr]
-			pieceMap[pieceNr].shapeID = shapeID
-			pieceMap[pieceNr].shape = this.shapes.voxel[shapeID]
-		}
-		return pieceMap
 	}
 }

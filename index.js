@@ -1,5 +1,5 @@
 import {XMLBuilder, XMLParser} from 'fast-xml-parser';
-import {rotate} from './burrUtils.js'
+import {rotate, translate} from './burrUtils.js'
 
 const XMLAlwaysArrayName = [
 	"voxel",
@@ -51,9 +51,9 @@ export class State {
 	get x() { return this.dx.text.split(" ") }
 	get y() { return this.dy.text.split(" ") }
 	get z() { return this.dz.text.split(" ") }
-	get memberPositions() {
+	get piecePositions() {
 		// returns array of positions, 1 entry per member in the separation
-		// memberPositions[0] = { x: 3, y: 2, z: -1} is position of first piece in sep
+		// piecePositions[0] = { x: 3, y: 2, z: -1} is position of first piece in sep
 		let arr=[]
 		for (let idx in this.x) {
 			let position={x: Number(this.x[idx]), y: Number(this.y[idx]), z: Number(this.z[idx])}
@@ -84,7 +84,7 @@ export class Pieces {
 		}
 	}
 	get count() { return this["@attributes"].count }
-	get members() { return this.text.split(" ").map((val) => Number(val))}
+	get pieceNumbers() { return this.text.split(" ").map((val) => Number(val))}
 	get asString() { return this.text }
 }
 
@@ -117,17 +117,16 @@ export class Separation {
 			this[prop] = props[prop]
 		}
 	}
-	get statePositions() {
-		// Array of the memberPositions for each state in the separation
-		// the memberPositions need to be remapped to the piece number of the problem
-		// statePositions[1][2] = empty | { x: 3, y: 5, z:-1 }
+	get piecePositions() {
+		// Array of the piecePositions for each state in the separation
+		// piecePositions[1][2] = empty | { x: 3, y: 5, z:-1 }
 		//              = position of 3d piece in problem, for 2nd state of separation
 		let arr=[]
 		for (let state of this.state) {
-			let memPos = state.memberPositions
+			let memPos = state.piecePositions
 			let piecePos = []
 			for (let idx in memPos) {
-				piecePos[this.members[idx]] = memPos[idx]
+				piecePos[this.pieceNumbers[idx]] = memPos[idx]
 			}
 			arr.push(piecePos)
 		}
@@ -137,14 +136,9 @@ export class Separation {
 		// number of states in this separation
 		return this.state.length
 	}
-	get members() {
+	get pieceNumbers() {
 		// Array of pieces in this separation
-		return this.pieces.members
-	}
-	get piecelistMap() {
-		let o = {}
-		o[this.pieces.asString] = this
-		return o
+		return this.pieces.pieceNumbers
 	}
 	// normalized positions as string (first position needs to be "0 0 0")
 	get stateString() {
@@ -160,29 +154,32 @@ export class Separation {
 		}
 		return m
 	}
+	/*
 	// piecelistMapAll["1 2 5"] = the separation that has pieces "1 2 5" (in the separationtree)
 	get piecelistMapAll() {
-		let o = this.piecelistMap
+		let o = {}
+		o[this.pieces.asString] = this
 		for (let sep of this.separation) {
 			Object.assign(o, sep.piecelistMapAll)
 		}
 		return o
 	}
+	*/
 	//
-	get statePositionsAll() {
-		let a = [...this.statePositions]
+	get piecePositionsAll() {
+		let a = [...this.piecePositions]
 		for (let sep of this.separation) {
-			a.push(...sep.statePositionsAll)
+			a.push(...sep.piecePositionsAll)
 		}
 		return a
 	}
 	get movePositionsAll() {
-		let a = [...this.statePositions]
+		let a = [...this.piecePositions]
 		for (let sep of this.separation) {
 			let spa = sep.movePositionsAll
 			let firstEl=spa.shift()
 			let lastEl=a[a.length-1]
-			for (let idx in this.members) {
+			for (let idx in this.pieceNumbers) {
 				if ((lastEl[idx] === undefined) && firstEl[idx]) {
 					lastEl[idx] = firstEl[idx]
 				}
@@ -323,6 +320,8 @@ export class Voxel {
 		this["@attributes"].z = z
 		this.text=this.stateString
 	}
+	get stateMap() { return this.private.stateMap }
+	set stateMap(m) { this.private.stateMap = m; this.text=this.stateString }
 	get stateString() {
 		let ss = ""
 		for (let z=0;z<=this.z-1;z++) {
@@ -380,7 +379,7 @@ export class Voxel {
 		if (!vp) this.private.stateMap[[x, y, z].join(" ")] = {state: s}
 		this.getVoxelPosition(x,y,z).state=s 
 	}
-	getWorldMap(id) {
+	getWorldMap(id=0) {
 		let theMap={}
 		for (let x=0;x<this.x;x++) {
 			for (let y=0;y<this.y;y++) { 
@@ -389,7 +388,7 @@ export class Voxel {
 				}
 			}
 		}
-		return theMap
+		return new WorldMap(theMap)
 	}
 	clone(orig) {
 		var { "@attributes" : { ...attrs}, ...props } = orig
@@ -537,6 +536,50 @@ export class Problem {
 	}
 }
 
+export class WorldMap {
+	// map will contain entries of the form:
+	//   '1 2 3': 5
+	// meaning position { x:1, y: 2, z: 3} is occupied by piece 5
+	_map = {}
+	constructor(map = {}) {
+		this._map = map
+	}
+	get map() { return this._map }
+	set map(m) { this._map = m }
+	remap(v) {
+		for (pos in this.map){
+			this.map[pos] = v
+		}
+		return this.map
+	}
+	filter(searchValues) {
+		// searchValues should be an array of values to return
+		if (!Array.isArray(searchValues)) searchValues = [searchValues]
+		return Object.fromEntries( Object.entries(this.map).filter((val, idx, arr) => searchValues.includes(val[1])) )
+	}
+	canPlace(map) {
+		for (let pos in map) {
+			if (pos in this.map) {
+				console.log("conflict", pos, this.map[pos])
+				return false
+			}
+		}
+		return true
+	}
+	place(worldmap) {
+		Object.assign(this._map, worldmap.map)
+		return this.map
+	}
+	rotate(idx) {
+		let result = rotate(this.map, idx)
+		this.map = result
+	}
+	translate(translation) {
+		let result = translate(this.map, translation)
+		this.map = result
+	}
+}
+
 export class Puzzle {
 	gridType = {"@attributes" : { type : 0 }}
 	colors = {}
@@ -613,4 +656,30 @@ export class Puzzle {
 	deleteProblem(idx) {
 		if ( (idx >= 0) && (idx < this.problems.problem.length) ) return this.problems.problem.splice(idx,1)
 	}
+	getWorldMap(options = {}) {
+		var {solution = {}, problem, pieceNumbers = [], piecePositions } = options
+		// get rotations from solution.assembly
+		// get shape from puzzle (this)
+		// get pieces and their positions from pieceNumbers and piecePositions
+		//    Theses are in the format of separations:
+		//      piecePositions is sequential, format of state
+		//      pieceNumbers is sequential, maps to index in problem.shapeMap
+		// getWorldMap({solution: sol, problem: prob, pieceNumbers: [1, 2], piecePositions: [{x: 1, y: 2, z: 3}, {x: 2, y: 3, z: 4}]})
+		let worldMap=new WorldMap()
+        let pieceMap = solution.pieceMap
+        for (let idx in pieceNumbers) {
+			// idx is sequential
+			let pieceID = pieceNumbers[idx]
+            let shapeID=problem.shapeMap[pieceID]
+            let shape=this.shapes.voxel[shapeID]
+			let rotationIndex = pieceMap[pieceID].rotation
+			let position = piecePositions[idx]
+			let shapeMap = shape.getWorldMap(pieceID)
+			shapeMap.rotate(rotationIndex)
+			shapeMap.translate(position)
+			worldMap.place(shapeMap)
+		}
+		return worldMap
+	}
+
 }

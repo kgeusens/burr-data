@@ -194,7 +194,7 @@ export function rotate(stateObjects, idx = 0) {
 }
 
 export function translate(stateObjects, vector) {
-  var { x, y, z } = vector
+  var { x=0, y=0, z=0 } = vector
   let result={}
   for (let state in stateObjects) {
     let stateArray = state.split(" ")

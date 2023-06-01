@@ -54,6 +54,7 @@ export class State {
 	get piecePositions() {
 		// returns array of positions, 1 entry per member in the separation
 		// piecePositions[0] = { x: 3, y: 2, z: -1} is position of first piece in sep
+		// piecePositions on State is sequential
 		let arr=[]
 		for (let idx in this.x) {
 			let position={x: Number(this.x[idx]), y: Number(this.y[idx]), z: Number(this.z[idx])}
@@ -119,8 +120,9 @@ export class Separation {
 	}
 	get piecePositions() {
 		// Array of the piecePositions for each state in the separation
-		// piecePositions[1][2] = empty | { x: 3, y: 5, z:-1 }
-		//              = position of 3d piece in problem, for 2nd state of separation
+		// it is a sparse matrix with the indices remapped (state = sequential, but on separations it is sparse)
+		// piecePositions[1][5] = empty | { x: 3, y: 5, z:-1 }
+		//              = position of piece with id 5 in problem, for 2nd state of separation
 		let arr=[]
 		for (let state of this.state) {
 			let memPos = state.piecePositions
@@ -552,10 +554,13 @@ export class WorldMap {
 		}
 		return this.map
 	}
+	get pieceList() {
+		return Object.values(this.map).filter((val, idx, arr) => arr.indexOf(val) === idx ).sort()
+	}
 	filter(searchValues) {
 		// searchValues should be an array of values to return
 		if (!Array.isArray(searchValues)) searchValues = [searchValues]
-		return Object.fromEntries( Object.entries(this.map).filter((val, idx, arr) => searchValues.includes(val[1])) )
+		return new WorldMap(Object.fromEntries( Object.entries(this.map).filter((val, idx, arr) => searchValues.includes(val[1]))))
 	}
 	canPlace(map) {
 		for (let pos in map) {
@@ -573,10 +578,47 @@ export class WorldMap {
 	rotate(idx) {
 		let result = rotate(this.map, idx)
 		this.map = result
+		return result
 	}
 	translate(translation) {
 		let result = translate(this.map, translation)
 		this.map = result
+		return result
+	}
+	checkMoveConflicts(pieceList, translation) {
+		if (!Array.isArray(pieceList)) pieceList = [ pieceList ]
+		let pieceMap = this.filter(pieceList).translate(translation)
+		let conflictList = []
+		for (let pos in pieceMap) {
+			if (this.map[pos]) {
+				// something is there
+				if (pieceList.includes(this.map[pos])) {
+					// it is one of our own pieces
+				}
+				else {
+					// we have a conflict, add the conflicting piece to the stack
+					if (!conflictList.includes(this.map[pos])) conflictList.push(this.map[pos])
+				}
+			}
+		}
+		return conflictList.sort()
+	}
+	canMove(pieceList, translation) {
+		if (!Array.isArray(pieceList)) pieceList = [ pieceList ]
+		let pieceMap = this.filter(pieceList).translate(translation)
+		for (let pos in pieceMap) {
+			if (this.map[pos]) {
+				// something is there
+				if (pieceList.includes(this.map[pos])) {
+					// it is one of our own pieces
+				}
+				else {
+					// conflict
+					return false
+				}
+			}
+		}
+		return true
 	}
 }
 
@@ -662,7 +704,7 @@ export class Puzzle {
 		// get shape from puzzle (this)
 		// get pieces and their positions from pieceNumbers and piecePositions
 		//    Theses are in the format of separations:
-		//      piecePositions is sequential, format of state
+		//      piecePositions is sparse, format of state
 		//      pieceNumbers is sequential, maps to index in problem.shapeMap
 		// getWorldMap({solution: sol, problem: prob, pieceNumbers: [1, 2], piecePositions: [{x: 1, y: 2, z: 3}, {x: 2, y: 3, z: 4}]})
 		let worldMap=new WorldMap()
@@ -673,7 +715,7 @@ export class Puzzle {
             let shapeID=problem.shapeMap[pieceID]
             let shape=this.shapes.voxel[shapeID]
 			let rotationIndex = pieceMap[pieceID].rotation
-			let position = piecePositions[idx]
+			let position = piecePositions[pieceID]
 			let shapeMap = shape.getWorldMap(pieceID)
 			shapeMap.rotate(rotationIndex)
 			shapeMap.translate(position)

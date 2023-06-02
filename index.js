@@ -597,7 +597,7 @@ export class WorldMap {
 		let pieceMap = this.filter(pieceList).translate(translation)
 		let conflictList = []
 		for (let pos in pieceMap) {
-			if (this.map[pos]) {
+			if (this.map[pos] >= 0) {
 				// something is there
 				if (pieceList.includes(this.map[pos])) {
 					// it is one of our own pieces
@@ -614,7 +614,7 @@ export class WorldMap {
 		if (!Array.isArray(pieceList)) pieceList = [ pieceList ]
 		let pieceMap = this.filter(pieceList).translate(translation)
 		for (let pos in pieceMap) {
-			if (this.map[pos]) {
+			if (this.map[pos] >= 0) {
 				// something is there
 				if (pieceList.includes(this.map[pos])) {
 					// it is one of our own pieces

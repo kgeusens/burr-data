@@ -8,7 +8,7 @@ import * as TOOLS from '../burrUtils.js'
 //console.log(thePuzzle.saveToXML())
 
 // Read a plain text xml file and load it (in the xmpuzzle format)
-const xmpuzzleFile = readFileSync("solved.xml");
+const xmpuzzleFile = readFileSync("misusedKey.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 //theXMPuzzle.problems.problem[0].shapes.shape[0].group=0
 //theXMPuzzle.problems.problem[0].shapes.shape[0].group=2
@@ -21,7 +21,6 @@ let voxels = puzzle.shapes.voxel
 let prob=puzzle.problems.problem[0]
 //console.dir(prob.shapeMap)
 let sol=prob.solutions.solution[0]
-let sep=sol.separation[0]
 //console.dir(sol.pieceMap)
 //console.dir(sol.pieceNumbers)
 //console.dir(sol.separation[0])
@@ -35,16 +34,14 @@ let sep=sol.separation[0]
 //console.dir(sep.stateCountAll, {depth:null})
 //console.log(theXMPuzzle.problems.problem[0].solutions.solution[0].complexity)
 //console.dir(theXMPuzzle.getSolutionMap(0,0), { depth: null})
-let worldMap=puzzle.getWorldMap({solution: sol, problem: prob, pieceNumbers: sep.pieceNumbers, piecePositions: sep.piecePositions[0]})
+let worldMap=puzzle.getWorldMap({solution: sol, problem: prob})
 //console.log(worldMap.filter(2))
 //console.log(worldMap.canPlace({'0 1 9': "Koen"}))
 //console.log(worldMap.map)
-let worldMap2=puzzle.getWorldMap({solution: sol, problem: prob})
-console.log(worldMap2.map)
-console.log(worldMap.checkMoveConflicts(0, {z: -1}))
-console.log(worldMap.canMove(6, {z: -1}))
-console.log(worldMap.pieceList)
-console.log(worldMap.map)
+console.log(worldMap.checkMoveConflicts(1, {y: -4}))
+console.log(worldMap.canMove(1, {x:0, y:-4, z: 0}))
+//console.log(worldMap.pieceList)
+//console.log(worldMap.map)
 // Build an empty puzzle object and test some methods
 //const emptyPuzzle = new DATA.Puzzle()
 //emptyPuzzle.addShape({ "@attributes" : {x: 1, y: 2, z: 3}})

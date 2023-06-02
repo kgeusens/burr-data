@@ -569,6 +569,13 @@ export class WorldMap {
 		if (!Array.isArray(searchValues)) searchValues = [searchValues]
 		return new WorldMap(Object.fromEntries( Object.entries(this.map).filter((val, idx, arr) => searchValues.includes(val[1]))))
 	}
+	delete(searchValues) {
+		// searchValues should be an array of values to return
+		let delMap = this.filter(searchValues)
+		for (let pos in delMap.map) {
+			delete this._map[pos]
+		}
+	}
 	canPlace(map) {
 		for (let pos in map) {
 			if (pos in this.map) {

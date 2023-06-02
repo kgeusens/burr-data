@@ -1,6 +1,6 @@
 {
   "name": "@kgeusens/burr-data",
-  "version": "0.1.42",
+  "version": "0.1.43",
   "description": "Data model capable of loading and producing xmpuzzle style xml.",
   "main": "index.js",
   "type": "module",

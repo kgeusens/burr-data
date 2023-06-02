@@ -231,6 +231,13 @@ export class Assembly {
 		}
 		return pieces
 	}
+	get piecePositions() {
+		let arr = []
+		for (let idx in this.pieceMap) {
+			arr[idx] = this.pieceMap[idx].position
+		}
+		return arr
+	}
 }
 
 export class Solution {
@@ -699,7 +706,7 @@ export class Puzzle {
 		if ( (idx >= 0) && (idx < this.problems.problem.length) ) return this.problems.problem.splice(idx,1)
 	}
 	getWorldMap(options = {}) {
-		var {solution = {}, problem, pieceNumbers = [], piecePositions } = options
+		var {solution = {}, problem, pieceNumbers, piecePositions } = options
 		// get rotations from solution.assembly
 		// get shape from puzzle (this)
 		// get pieces and their positions from pieceNumbers and piecePositions
@@ -709,6 +716,11 @@ export class Puzzle {
 		// getWorldMap({solution: sol, problem: prob, pieceNumbers: [1, 2], piecePositions: [{x: 1, y: 2, z: 3}, {x: 2, y: 3, z: 4}]})
 		let worldMap=new WorldMap()
         let pieceMap = solution.pieceMap
+		if (!pieceNumbers || !piecePositions) {
+			pieceNumbers = solution.assembly.pieceNumbers
+			piecePositions = solution.assembly.piecePositions
+		}
+
         for (let idx in pieceNumbers) {
 			// idx is sequential
 			let pieceID = pieceNumbers[idx]

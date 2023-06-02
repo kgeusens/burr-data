@@ -39,6 +39,8 @@ let worldMap=puzzle.getWorldMap({solution: sol, problem: prob, pieceNumbers: sep
 //console.log(worldMap.filter(2))
 //console.log(worldMap.canPlace({'0 1 9': "Koen"}))
 //console.log(worldMap.map)
+let worldMap2=puzzle.getWorldMap({solution: sol, problem: prob})
+console.log(worldMap2.map)
 console.log(worldMap.checkMoveConflicts(0, {z: -1}))
 console.log(worldMap.canMove(6, {z: -1}))
 console.log(worldMap.pieceList)

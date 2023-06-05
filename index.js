@@ -600,6 +600,7 @@ export class WorldMap {
 		return result
 	}
 	checkMoveConflicts(pieceList, translation) {
+		// Array. Return the list of pieces that interfere with our translated position
 		if (!Array.isArray(pieceList)) pieceList = [ pieceList ]
 		let pieceMap = this.filter(pieceList).translate(translation)
 		let conflictList = []
@@ -618,6 +619,7 @@ export class WorldMap {
 		return conflictList.sort()
 	}
 	canMove(pieceList, translation) {
+		// true or false, check if we can move the piecList in the translation direction
 		if (!Array.isArray(pieceList)) pieceList = [ pieceList ]
 		let pieceMap = this.filter(pieceList).translate(translation)
 		for (let pos in pieceMap) {
@@ -633,6 +635,17 @@ export class WorldMap {
 			}
 		}
 		return true
+	}
+	getMovingPiecelist(pieceList, translation) {
+		// starting from pieceList, extend to all the pieces we would drag along in the translation direction
+		if (!Array.isArray(pieceList)) pieceList = [ pieceList ]
+		let theList = pieceList
+		let conflicts=this.checkMoveConflicts(theList, translation)
+		while (conflicts.length > 0) {
+			theList.push(...conflicts)
+			conflicts=this.checkMoveConflicts(theList, translation)
+		}
+		return theList.sort()		
 	}
 }
 

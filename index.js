@@ -298,9 +298,9 @@ export class Voxel {
 		if (!text) text = "_".repeat(this.x*this.y*this.z)
 		// step 4: process explicit properties
 		// step 5: process generic child properties (not used but you never know)
-		for (let prop in props) {
-			this[prop] = props[prop]
-		}
+//		for (let prop in props) {
+//			this[prop] = props[prop]
+//		}
 		this.setSize(x, y, z)
 		this.stateString = text
 	}

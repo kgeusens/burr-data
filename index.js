@@ -442,13 +442,14 @@ export class Comment {
 	private = { designer: "", name: "", date: "19700727" } // designer, date, name, PWBP: {uri, goal, category, subcategory, ...}
 	"@attributes" = {} // popup
 	text=""
-	get designer() { return this.private.designer }
-	set designer(val) { this.private.designer = val; this.updateText() }
-	get name() { return this.private.name }
-	set name(val) { this.private.name = val; this.updateText() }
-	get date() { return this.private.date }
-	set date(val) { this.private.date = val; this.updateText() }
 	updateText() { this.text=JSON.stringify(this.private) }
+	set(prop, val) { this.private[prop] = val; this.updateText() }
+	get designer() { return this.private.designer }
+	set designer(val) { this.set("designer", val) }
+	get name() { return this.private.name }
+	set name(val) { this.set("name", val) }
+	get date() { return this.private.date }
+	set date(val) { this.set("date", val) }
 	constructor(flatObject) {
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
 		var { "@attributes" : { ...attrs}, text, ...props } = flatObject

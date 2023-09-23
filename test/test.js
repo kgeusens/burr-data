@@ -11,6 +11,7 @@ import * as TOOLS from '../burrUtils.js'
 // Read a plain text xml file and load it (in the xmpuzzle format)
 const xmpuzzleFile = readFileSync("test.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
+theXMPuzzle.comment.set("uri", "/puzzle/loc")
 //theXMPuzzle.problems.problem[0].shapes.shape[0].group=0
 //theXMPuzzle.problems.problem[0].shapes.shape[0].group=2
 console.log(theXMPuzzle)

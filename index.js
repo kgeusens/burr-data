@@ -224,7 +224,6 @@ export class Assembly {
 	}
 	// return the numbers of the pieces that have a value in the assembly
 	get pieceNumbers() {
-//		console.log("assembly pieceNumbers")
 		let pieces = []
 		for (let i in this.pieceMap) {
 			pieces.push(Number(i))
@@ -277,6 +276,9 @@ export class Solution {
 	}
 	get pieceNumbers() {
 		return this.assembly.pieceNumbers
+	}
+	get moves() { 
+		return this.separation[0]?this.separation[0].length - 1:0 
 	}
 }
 
@@ -436,6 +438,38 @@ export class Result {
 	}
 }
 
+export class Comment {
+	private = { designer: "", name: "", date: "19700727" } // designer, date, name, PWBP: {uri, goal, category, subcategory, ...}
+	"@attributes" = {} // popup
+	text=""
+	get designer() { return this.private.designer }
+	set designer(val) { this.private.designer = val; this.updateText() }
+	get name() { return this.private.name }
+	set name(val) { this.private.name = val; this.updateText() }
+	get date() { return this.private.date }
+	set date(val) { this.private.date = val; this.updateText() }
+	updateText() { this.text=JSON.stringify(this.private) }
+	constructor(flatObject) {
+		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
+		var { "@attributes" : { ...attrs}, text, ...props } = flatObject
+		// step 1: process explicit destructured attributes
+		// step 2: process generic other attributes
+		for (let attr in attrs) {
+			this["@attributes"][attr] = attrs[attr]
+		}
+		// step 3: process text content (mostly undefined)
+		// try to parse the text as a JSON object.
+		this.text = text
+		try { this.private = JSON.parse(text) }
+		catch(err) { }
+		// step 4: process explicit properties
+		// step 5: process generic child properties (not used but you never know)
+		for (let prop in props) {
+			this[prop] = props[prop]
+		}
+	}
+}
+
 export class Shape {
 	"@attributes" = {} //	id, count, min, max, group 
 	text
@@ -542,6 +576,13 @@ export class Problem {
 			}
 		}
 		return theMap
+	}
+	get moves() {
+		let m = 0
+		for (let sol of this.solutions.solution) {
+			m = Math.max(m, sol.moves)
+		}
+		return m
 	}
 }
 
@@ -670,7 +711,7 @@ export class Puzzle {
 			colors, // optional
 			shapes = {voxel: [new Voxel()]}, // array
 			problems = {problem: [new Problem()]}, // array
-			comment, // optional
+			comment = {}, // optional
 			...props } = flatObject
 
 		// step 1: process explicit destructured attributes
@@ -688,6 +729,7 @@ export class Puzzle {
 		for (let pblm of problems.problem) {
 			this.problems.problem.push(new Problem(pblm)) 
 		}
+		this.comment = new Comment(comment)
 		// step 5: process generic child properties (not used but you never know)
 		for (let prop in props) {
 			this[prop] = props[prop]
@@ -755,5 +797,7 @@ export class Puzzle {
 		}
 		return worldMap
 	}
-
+	get moves() {
+		return this.problems.problem[0]?this.problems.problem[0].moves:0
+	}
 }

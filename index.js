@@ -438,19 +438,34 @@ export class Result {
 	}
 }
 
+const metaHandler = {
+	get(target, prop)	 {
+		return target[prop]
+	},
+	set(target, prop, val) {
+		target.set(prop,val)
+		return true
+	}
+}
+
+export class Metadata {
+	#parent
+	constructor(parent) {
+		this.#parent=parent
+	}
+	set(prop, val) { this[prop] = val; this.#parent.updateText() }
+}
+
 export class Comment {
-	private = { designer: "", name: "", date: "19700727" } // designer, date, name, PWBP: {uri, goal, category, subcategory, ...}
+	#meta
+	private = { meta: {} } // designer, date, name, PWBP: {uri, goal, category, subcategory, ...}
 	"@attributes" = {} // popup
 	text=""
-	updateText() { this.text=JSON.stringify(this.private) }
-	set(prop, val) { this.private[prop] = val; this.updateText() }
-	get designer() { return this.private.designer }
-	set designer(val) { this.set("designer", val) }
-	get name() { return this.private.name }
-	set name(val) { this.set("name", val) }
-	get date() { return this.private.date }
-	set date(val) { this.set("date", val) }
-	constructor(flatObject) {
+	updateText() { this.text=JSON.stringify(this.private.meta) }
+	get meta() { return this.#meta }
+	constructor(flatObject, parent=undefined) {
+		this.private.meta = new Metadata(this)
+		this.#meta=new Proxy(this.private.meta, metaHandler)
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
 		var { "@attributes" : { ...attrs}, text, ...props } = flatObject
 		// step 1: process explicit destructured attributes
@@ -461,7 +476,12 @@ export class Comment {
 		// step 3: process text content (mostly undefined)
 		// try to parse the text as a JSON object.
 		this.text = text
-		try { this.private = JSON.parse(text) }
+		try { 
+			let meta = JSON.parse(text)
+			for (let m in meta) {
+				this.meta[m] = meta[m]
+			}
+		}
 		catch(err) { }
 		// step 4: process explicit properties
 		// step 5: process generic child properties (not used but you never know)
@@ -730,12 +750,13 @@ export class Puzzle {
 		for (let pblm of problems.problem) {
 			this.problems.problem.push(new Problem(pblm)) 
 		}
-		this.comment = new Comment(comment)
+		this.comment = new Comment(comment, this)
 		// step 5: process generic child properties (not used but you never know)
 		for (let prop in props) {
 			this[prop] = props[prop]
 		}
     }
+	get meta() { return this.comment.meta }
 	get largestShape() { return this.shapes.voxel.reduce((result, item) => {if (item.volume >= result.volume) { return item } else return result})}
 	saveToXML() {
 		const builder = new XMLBuilder(XMLoptions)

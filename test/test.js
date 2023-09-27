@@ -16,7 +16,7 @@ const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 //theXMPuzzle.problems.problem[0].shapes.shape[0].group=2
 theXMPuzzle.meta["test"]='ikel'
 theXMPuzzle.meta["moves"]=200
-console.log(theXMPuzzle.saveToXML())
+console.log(theXMPuzzle.meta["designer"])
 //console.log(theXMPuzzle.comment)
 //console.log(theXMPuzzle.moves)
 //console.log(theXMPuzzle.saveToXML())

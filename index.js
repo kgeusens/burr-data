@@ -453,6 +453,11 @@ export class Metadata {
 	constructor(parent) {
 		this.#parent=parent
 	}
+	get(target, prop, receiver) {
+		console.log("get")
+		let value = Reflect.get(...arguments);
+		return typeof value == 'function' ? value.bind(target) : value;		
+	}
 	set(prop, val) { this[prop] = val; this.#parent.updateText() }
 	clear() { for (let p in this) {
 		delete this[p]

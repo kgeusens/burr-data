@@ -466,15 +466,15 @@ export class Metadata {
 }
 
 export class Comment {
-	#meta
-	private = { meta: {} } // designer, date, name, PWBP: {uri, goal, category, subcategory, ...}
+//	#meta
+	private = { proxy:{}, meta: {} } // designer, date, name, PWBP: {uri, goal, category, subcategory, ...}
 	"@attributes" = {} // popup
 	text=""
 	updateText() { this.text=JSON.stringify(this.private.meta) }
 	// meta can be used as an array to store extra info, persistently in the xml comment field
 	// meta["designer"]="Koen Geusens" // adds the designer prop
 	// meta = {designer: "Koen", moves: 10, name: "little puzzle"} // replaces all props and adds desinger, moves, name
-	get meta() { return this.#meta }
+	get meta() { return this.private.proxy }
 	set meta(obj) {
 		this.private.meta.clear()
 		for (let m in obj) {
@@ -484,7 +484,7 @@ export class Comment {
 	}
 	constructor(flatObject, parent=undefined) {
 		this.private.meta = new Metadata(this)
-		this.#meta=new Proxy(this.private.meta, metaHandler)
+		this.private.proxy=new Proxy(this.private.meta, metaHandler)
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
 		var { "@attributes" : { ...attrs}, text, ...props } = flatObject
 		// step 1: process explicit destructured attributes

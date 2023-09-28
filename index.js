@@ -466,6 +466,9 @@ export class Comment {
 	"@attributes" = {} // popup
 	text=""
 	updateText() { this.text=JSON.stringify(this.private.meta) }
+	// meta can be used as an array to store extra info, persistently in the xml comment field
+	// meta["designer"]="Koen Geusens" // adds the designer prop
+	// meta = {designer: "Koen", moves: 10, name: "little puzzle"} // replaces all props and adds desinger, moves, name
 	get meta() { return this.#meta }
 	set meta(obj) {
 		this.private.meta.clear()

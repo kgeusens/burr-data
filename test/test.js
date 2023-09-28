@@ -17,6 +17,9 @@ const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 theXMPuzzle.meta["test"]='ikel'
 theXMPuzzle.meta["moves"]=200
 console.log(theXMPuzzle.meta["designer"])
+theXMPuzzle.meta=({override: "done"})
+console.log(theXMPuzzle.meta)
+console.log(theXMPuzzle)
 //console.log(theXMPuzzle.comment)
 //console.log(theXMPuzzle.moves)
 //console.log(theXMPuzzle.saveToXML())

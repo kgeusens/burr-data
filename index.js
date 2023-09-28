@@ -454,6 +454,10 @@ export class Metadata {
 		this.#parent=parent
 	}
 	set(prop, val) { this[prop] = val; this.#parent.updateText() }
+	clear() { for (let p in this) {
+		delete this[p]
+		this.#parent.updateText()
+	}}
 }
 
 export class Comment {
@@ -463,6 +467,13 @@ export class Comment {
 	text=""
 	updateText() { this.text=JSON.stringify(this.private.meta) }
 	get meta() { return this.#meta }
+	set meta(obj) {
+		this.private.meta.clear()
+		for (let m in obj) {
+			this.meta[m] = obj[m]
+		}
+		this.updateText()
+	}
 	constructor(flatObject, parent=undefined) {
 		this.private.meta = new Metadata(this)
 		this.#meta=new Proxy(this.private.meta, metaHandler)
@@ -757,6 +768,7 @@ export class Puzzle {
 		}
     }
 	get meta() { return this.comment.meta }
+	set meta(obj) { this.comment.meta=obj;return this.comment.meta }
 	get largestShape() { return this.shapes.voxel.reduce((result, item) => {if (item.volume >= result.volume) { return item } else return result})}
 	saveToXML() {
 		const builder = new XMLBuilder(XMLoptions)

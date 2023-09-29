@@ -785,6 +785,10 @@ export class Puzzle {
 		const cleanObject = parser.parse(tmpXML)
 		return builder.build(cleanObject)
 	}
+	saveToJSON() {
+		const parser = new XMLParser(XMLoptions);
+		return parser.parse(this.saveToXML())
+	}
 	static puzzleFromXML(xml) {
 		const parser = new XMLParser(XMLoptions);
 		var result = parser.parse(xml)

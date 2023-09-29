@@ -16,11 +16,12 @@ const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 //theXMPuzzle.problems.problem[0].shapes.shape[0].group=2
 theXMPuzzle.meta["test"]='ikel'
 theXMPuzzle.meta["moves"]=200
-console.log(theXMPuzzle.meta["designer"])
+//console.log(theXMPuzzle.meta["designer"])
 theXMPuzzle.meta={override: "done"}
-console.log(theXMPuzzle)
+//console.log(theXMPuzzle)
 theXMPuzzle.meta={}
-console.log(theXMPuzzle)//console.log(theXMPuzzle.comment)
+//console.log(theXMPuzzle)//console.log(theXMPuzzle.comment)
+console.log(theXMPuzzle.saveToJSON())
 //console.log(theXMPuzzle.moves)
 //console.log(theXMPuzzle.saveToXML())
 //console.log(theXMPuzzle.shapes.voxel[1].stateString)

@@ -580,6 +580,7 @@ export class Problem {
 		for(let shp of shapes.shape) {
 			this.shapes.shape.push(new Shape(shp))
 		}
+		if (!solutions.solution) solutions.solution=[]
 		for(let sol of solutions.solution) {
 			this.solutions.solution.push(new Solution(sol))
 		}

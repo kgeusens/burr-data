@@ -412,6 +412,73 @@ export class Voxel {
 		this.setSize(this.x, this.y, this.z)
 		this.stateString = this.text
 	}
+	toOBJ(name = "shape") {
+		let group = this.name?this.name:name
+		let OBJ="\ng " + group + '\n\n'
+		let vnodes = ""
+		let faces = ""
+		// generate the v nodes (vertices)
+		for (let z = 0; z <= this.z; z++) {
+			for (let y = 0; y <= this.y; y++) {
+				for (let x = 0; x <= this.x; x++) {
+					vnodes += "v " + [x, y, z].join(" ") + '\n'
+				}
+			}
+		}
+		// generate the faces
+		for (let z = 0; z < this.z; z++) {
+			for (let y = 0; y < this.y; y++) {
+				for (let x = 0; x < this.x; x++) {
+					// check every face for a neighbor and generate facet if no neighbor
+					if (this.getVoxelState(x, y, z)) {
+						if ( !this.getVoxelState(x-1, y, z) ) {
+							let sv=1 + x + y*(this.x + 1) + z*(this.x + 1)*(this.y + 1)
+							let dx = 1
+							let dy = this.x + 1
+							let dz = (this.x + 1) * (this.y + 1)
+							faces += "f " + [sv, sv + dz, sv + dy + dz, sv + dy].join(" ") + '\n'
+						}
+						if ( !this.getVoxelState(x+1, y, z) ) {
+							let sv=1 + (x + 1) + y*(this.x + 1) + z*(this.x + 1)*(this.y + 1)
+							let dx = 1
+							let dy = this.x + 1
+							let dz = (this.x + 1) * (this.y + 1)
+							faces += "f " + [sv, sv + dy, sv + dy + dz, sv + dz].join(" ") + '\n'
+						}
+						if ( !this.getVoxelState(x, y-1, z) ) {
+							let sv=1 + x + y*(this.x + 1) + z*(this.x + 1)*(this.y + 1)
+							let dx = 1
+							let dy = this.x + 1
+							let dz = (this.x + 1) * (this.y + 1)
+							faces += "f " + [sv, sv + dx, sv + dx + dz, sv + dz].join(" ") + '\n'
+						}
+						if ( !this.getVoxelState(x, y+1, z) ) {
+							let sv=1 + x + (y+1)*(this.x + 1) + z*(this.x + 1)*(this.y + 1)
+							let dx = 1
+							let dy = this.x + 1
+							let dz = (this.x + 1) * (this.y + 1)
+							faces += "f " + [sv, sv + dz, sv + dx + dz, sv + dx].join(" ") + '\n'
+						}
+						if ( !this.getVoxelState(x, y, z-1) ) {
+							let sv=1 + x + y*(this.x + 1) + z*(this.x + 1)*(this.y + 1)
+							let dx = 1
+							let dy = this.x + 1
+							let dz = (this.x + 1) * (this.y + 1)
+							faces += "f " + [sv, sv + dy, sv + dx + dy, sv + dx].join(" ") + '\n'
+						}
+						if ( !this.getVoxelState(x, y, z+1) ) {
+							let sv=1 + x + y*(this.x + 1) + (z+1)*(this.x + 1)*(this.y + 1)
+							let dx = 1
+							let dy = this.x + 1
+							let dz = (this.x + 1) * (this.y + 1)
+							faces += "f " + [sv, sv + dx, sv + dx + dy, sv + dy].join(" ") + '\n'
+						}
+					}
+				}
+			}
+		}
+		return OBJ + vnodes + faces
+	}
 }
 
 export class Result {

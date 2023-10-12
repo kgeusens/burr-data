@@ -479,6 +479,134 @@ export class Voxel {
 		}
 		return OBJ + vnodes + faces
 	}
+	test(name = "shape", offset = 0.1, bezel = 0.1 ) {
+		let group = this.name?this.name:name
+		let OBJ="\ng " + group + '\n\n'
+		let vnodes = []
+		let faces = []
+		let cubeTemplate = []
+		let cubeFaces = {
+			left: [0,4,6,2],
+			right: [1,3,7,5],
+			front: [8,9,13,12],
+			back: [10,14,15,11],
+			bottom: [16,18,19,17],
+			top: [20,21,23,22]
+		}
+		let cubeNodes = {
+			left:  [0,8,16, 2,10,18, 4,12,20, 6,14,22],
+			right: [1,3,5,7,9,11,13,15,17,19,21,23],
+			front: [0,8,16, 1,9,17, 4,12,20, 5,13,21],
+			back: [2,10,18, 3,11,19, 6,14,22, 7,15,23],
+			bottom: [0,8,16, 1,9,17, 2,10,18, 3,11,19],
+			top: [4,12,20, 5,13,21, 6,14,22, 7,15,23]
+		}
+		// create the cube template
+		let idx=0
+		for (let z = 0; z < 2; z++) {
+			for (let y = 0; y < 2; y++) {
+				for (let x = 0; x < 2; x++) {
+					cubeTemplate[idx] = cubeTemplate[idx+8] = cubeTemplate[idx+16] = [x, y, z].join(" ")
+					idx++
+				}
+			}
+		}
+		// generate the faces
+		let nfaces=0
+		for (let z = 0; z < this.z; z++) {
+			for (let y = 0; y < this.y; y++) {
+				for (let x = 0; x < this.x; x++) {
+					let template = [...cubeTemplate]
+					for (let n in template) {
+						let tn = template[n].split(" ")
+						tn[0] = tn[0]*1 + x
+						tn[1] = tn[1]*1 + y
+						tn[2] = tn[2]*1 + z
+						template[n] = tn
+					} // transform the template values into an array
+					if (this.getVoxelState(x, y, z)) { // this voxel is not empty
+						if ( !this.getVoxelState(x-1, y, z) ) { // left is empty
+							// shift the template nodes to the right
+							for (let node of cubeNodes.left) {
+								let tn = template[node]
+								tn[0] += offset
+							}
+							// add the face
+							for (let node of cubeFaces.left) {
+								vnodes[vnodes.length] = template[node]
+							}
+							faces[nfaces] = [ 1 + nfaces*4, 2 + nfaces*4, 3 + nfaces*4, 4 + nfaces*4 ]
+							nfaces+=1
+						}
+						if ( !this.getVoxelState(x+1, y, z) ) {
+							for (let node of cubeNodes.right) {
+								//shift the nodes to the left
+								let tn = template[node]
+								tn[0] -= offset
+							}
+							// add the face
+							for (let node of cubeFaces.right) {
+								vnodes[vnodes.length] = template[node]
+							}
+							faces[nfaces] = [ 1 + nfaces*4, 2 + nfaces*4, 3 + nfaces*4, 4 + nfaces*4 ]
+							nfaces+=1
+						}
+						if ( !this.getVoxelState(x, y-1, z) ) {
+							for (let node of cubeNodes.front) {
+								let tn = template[node]
+								tn[1] += offset
+							}
+							// add the face
+							for (let node of cubeFaces.front) {
+								vnodes[vnodes.length] = template[node]
+							}
+							faces[nfaces] = [ 1 + nfaces*4, 2 + nfaces*4, 3 + nfaces*4, 4 + nfaces*4 ]
+							nfaces+=1
+						}
+						if ( !this.getVoxelState(x, y+1, z) ) {
+							for (let node of cubeNodes.back) {
+								let tn = template[node]
+								tn[1] -= offset
+							}
+							// add the face
+							for (let node of cubeFaces.back) {
+								vnodes[vnodes.length] = template[node]
+							}
+							faces[nfaces] = [ 1 + nfaces*4, 2 + nfaces*4, 3 + nfaces*4, 4 + nfaces*4 ]
+							nfaces+=1
+						}
+						if ( !this.getVoxelState(x, y, z-1) ) {
+							for (let node of cubeNodes.bottom) {
+								let tn = template[node]
+								tn[2] += offset
+							}
+							// add the face
+							for (let node of cubeFaces.bottom) {
+								vnodes[vnodes.length] = template[node]
+							}
+							faces[nfaces] = [ 1 + nfaces*4, 2 + nfaces*4, 3 + nfaces*4, 4 + nfaces*4 ]
+							nfaces+=1
+						}
+						if ( !this.getVoxelState(x, y, z+1) ) {
+							for (let node of cubeNodes.top) {
+								let tn = template[node]
+								tn[2] -= offset
+							}
+							// add the face
+							for (let node of cubeFaces.top) {
+								vnodes[vnodes.length] = template[node]
+							}
+							faces[nfaces] = [ 1 + nfaces*4, 2 + nfaces*4, 3 + nfaces*4, 4 + nfaces*4 ]
+							nfaces+=1
+						}
+					}
+				}
+			}
+		}
+		for (let v of vnodes) OBJ += "v " + v.join(" ") + "\n"
+		for (let f of faces) OBJ += "f " + f.join(" ") + "\n"
+		return OBJ
+	}
 }
 
 export class Result {

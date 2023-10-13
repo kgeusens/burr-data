@@ -1006,6 +1006,24 @@ export class Voxel {
 								nfaces+=1
 							}
 						}
+						else { // neighbor at y - 1 => look for L-shapes
+							if (this.getVoxelState(x, y, z + 1) && !this.getVoxelState(x, y - 1, z + 1 )) {
+								vnodes.push("v " + (x + offset + bezel).toFixed(2) + " " + (y).toFixed(2) + " " + (z + 1 - offset).toFixed(2) + '\n')
+								vnodes.push("v " + (x + 1 - offset - bezel).toFixed(2) + " " + (y).toFixed(2) + " " + (z + 1 - offset).toFixed(2) + '\n')
+								vnodes.push("v " + (x + 1 - offset - bezel).toFixed(2) + " " + (y + offset).toFixed(2) + " " + (z + 1).toFixed(2) + '\n')
+								vnodes.push("v " + (x + offset + bezel).toFixed(2) + " " + (y + offset).toFixed(2) + " " + (z + 1).toFixed(2) + '\n')
+								faces[nfaces] = [ 1 + nfaces*4, 2 + nfaces*4, 3 + nfaces*4, 4 + nfaces*4 ]
+								nfaces+=1
+							}
+							if (this.getVoxelState(x, y, z - 1) && !this.getVoxelState(x, y - 1, z - 1 )) {
+								vnodes.push("v " + (x + offset + bezel).toFixed(2) + " " + (y + offset).toFixed(2) + " " + (z).toFixed(2) + '\n')
+								vnodes.push("v " + (x + 1 - offset - bezel).toFixed(2) + " " + (y + offset).toFixed(2) + " " + (z).toFixed(2) + '\n')
+								vnodes.push("v " + (x + 1 - offset - bezel).toFixed(2) + " " + (y).toFixed(2) + " " + (z + offset).toFixed(2) + '\n')
+								vnodes.push("v " + (x + offset + bezel).toFixed(2) + " " + (y).toFixed(2) + " " + (z + offset).toFixed(2) + '\n')
+								faces[nfaces] = [ 1 + nfaces*4, 2 + nfaces*4, 3 + nfaces*4, 4 + nfaces*4 ]
+								nfaces+=1
+							}
+						}
 						// y + 1
 						if ( !this.getVoxelState(x, y+1, z) ) {
 							vnodes.push("v " + (x + offset + bezel).toFixed(2) + " " + (y + 1 - offset).toFixed(2) + " " + (z + offset + bezel).toFixed(2) + '\n')

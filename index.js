@@ -759,6 +759,13 @@ export class Voxel {
 									vnodes.push("v 0 0 0\n")
 									faces[nfaces] = [ 1 + nfaces*4, 2 + nfaces*4, 3 + nfaces*4 ]
 									nfaces+=1
+								} else { // (x-1) and (y-1) are empty, (z-1) is filled : extend bezel of (x-1) (y-1)
+									vnodes.push("v " + (x + offset).toFixed(2) + " " + (y + offset + bezel).toFixed(2) + " " + (z + offset + bezel).toFixed(2) + '\n')
+									vnodes.push("v " + (x + offset).toFixed(2) + " " + (y + offset + bezel).toFixed(2) + " " + (z).toFixed(2) + '\n')
+									vnodes.push("v " + (x + offset + bezel).toFixed(2) + " " + (y + offset).toFixed(2) + " " + (z).toFixed(2) + '\n')
+									vnodes.push("v " + (x + offset + bezel).toFixed(2) + " " + (y + offset).toFixed(2) + " " + (z + offset + bezel).toFixed(2) + '\n')
+									faces[nfaces] = [ 1 + nfaces*4, 2 + nfaces*4, 3 + nfaces*4, 4 + nfaces*4 ]
+									nfaces+=1
 								}
 								if ( !this.getVoxelState(x, y, z+1) ) { // (x-1) and (y-1) and (z+1) are empty : triangle in corner
 									vnodes.push("v " + (x + offset).toFixed(2) + " " + (y + offset + bezel).toFixed(2) + " " + (z + 1 - offset - bezel).toFixed(2) + '\n')
@@ -766,6 +773,13 @@ export class Voxel {
 									vnodes.push("v " + (x + offset + bezel).toFixed(2) + " " + (y + offset).toFixed(2) + " " + (z + 1 - offset - bezel).toFixed(2) + '\n')
 									vnodes.push("v 0 0 0\n")
 									faces[nfaces] = [ 1 + nfaces*4, 3 + nfaces*4, 2 + nfaces*4 ]
+									nfaces+=1
+								} else { // (x-1) and (y-1) are empty, (z+1) is filled : extend bezel of (x-1) (y-1)
+									vnodes.push("v " + (x + offset).toFixed(2) + " " + (y + offset + bezel).toFixed(2) + " " + (z + 1 - offset - bezel).toFixed(2) + '\n')
+									vnodes.push("v " + (x + offset).toFixed(2) + " " + (y + offset + bezel).toFixed(2) + " " + (z + 1).toFixed(2) + '\n')
+									vnodes.push("v " + (x + offset + bezel).toFixed(2) + " " + (y + offset).toFixed(2) + " " + (z + 1).toFixed(2) + '\n')
+									vnodes.push("v " + (x + offset + bezel).toFixed(2) + " " + (y + offset).toFixed(2) + " " + (z + 1 - offset - bezel).toFixed(2) + '\n')
+									faces[nfaces] = [ 1 + nfaces*4, 4 + nfaces*4, 3 + nfaces*4, 2 + nfaces*4 ]
 									nfaces+=1
 								}
 							} else { // no bezel
@@ -896,13 +910,27 @@ export class Voxel {
 									vnodes.push("v 0 0 0\n")
 									faces[nfaces] = [ 1 + nfaces*4, 3 + nfaces*4, 2 + nfaces*4 ]
 									nfaces+=1
-								}
-								if ( !this.getVoxelState(x, y, z+1) ) { // (x-1) and (y-1) and (z+1) are empty : triangle in corner
+								} else { // (x+1) and (y-1) are empty, (z-1) is filled : extend bezel of (x+1) (y-1)
+									vnodes.push("v " + (x + 1 - offset).toFixed(2) + " " + (y + offset + bezel).toFixed(2) + " " + (z + offset + bezel).toFixed(2) + '\n')
+									vnodes.push("v " + (x + 1 - offset).toFixed(2) + " " + (y + offset + bezel).toFixed(2) + " " + (z).toFixed(2) + '\n')
+									vnodes.push("v " + (x + 1 - offset - bezel).toFixed(2) + " " + (y + offset).toFixed(2) + " " + (z).toFixed(2) + '\n')
+									vnodes.push("v " + (x + 1 - offset - bezel).toFixed(2) + " " + (y + offset).toFixed(2) + " " + (z + offset + bezel).toFixed(2) + '\n')
+									faces[nfaces] = [ 1 + nfaces*4, 4 + nfaces*4, 3 + nfaces*4, 2 + nfaces*4 ]
+									nfaces+=1
+										}
+								if ( !this.getVoxelState(x, y, z+1) ) { // (x+1) and (y-1) and (z+1) are empty : triangle in corner
 									vnodes.push("v " + (x + 1 - offset).toFixed(2) + " " + (y + offset + bezel).toFixed(2) + " " + (z + 1 - offset - bezel).toFixed(2) + '\n')
 									vnodes.push("v " + (x + 1 - offset - bezel).toFixed(2) + " " + (y + offset + bezel).toFixed(2) + " " + (z +1 - offset).toFixed(2) + '\n')
 									vnodes.push("v " + (x + 1 - offset - bezel).toFixed(2) + " " + (y + offset).toFixed(2) + " " + (z + 1 - offset - bezel).toFixed(2) + '\n')
 									vnodes.push("v 0 0 0\n")
 									faces[nfaces] = [ 1 + nfaces*4, 2 + nfaces*4, 3 + nfaces*4 ]
+									nfaces+=1
+								} else { // (x+1) and (y-1) are empty, (z+1) is filled : extend bezel of (x-1) (y-1)
+									vnodes.push("v " + (x + 1 - offset).toFixed(2) + " " + (y + offset + bezel).toFixed(2) + " " + (z + 1 - offset - bezel).toFixed(2) + '\n')
+									vnodes.push("v " + (x + 1 - offset).toFixed(2) + " " + (y + offset + bezel).toFixed(2) + " " + (z + 1).toFixed(2) + '\n')
+									vnodes.push("v " + (x + 1 - offset - bezel).toFixed(2) + " " + (y + offset).toFixed(2) + " " + (z + 1).toFixed(2) + '\n')
+									vnodes.push("v " + (x + 1 - offset - bezel).toFixed(2) + " " + (y + offset).toFixed(2) + " " + (z + 1 - offset - bezel).toFixed(2) + '\n')
+									faces[nfaces] = [ 1 + nfaces*4, 2 + nfaces*4, 3 + nfaces*4, 4 + nfaces*4 ]
 									nfaces+=1
 								}
 							} else { // no bezel

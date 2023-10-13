@@ -2,7 +2,7 @@
  <gridType type="0"/>
  <colors/>
  <shapes>
-  <voxel x="3" y="3" z="3" type="0">____#_____#_###_#_____#____</voxel>
+  <voxel x="3" y="3" z="3" type="0">_____________#_____________</voxel>
   <voxel x="5" y="7" z="1" type="0">######___##___##___##___##__#######</voxel>
  </shapes>
  <problems>

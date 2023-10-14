@@ -1489,10 +1489,14 @@ export class Voxel {
 		for (let z = 0; z < this.z; z++) {
 			for (let y = 0; y < this.y; y++) {
 				for (let x = 0; x < this.x; x++) {
-					if (this.getVoxelState(x, y, z)) { // this voxel is not empty
+					// Looping over every potential box
+					if (this.getVoxelState(x, y, z)) { // this box is not empty
+						//
 						// process the faces
+						// 
 						for (let dim of dimensions){
 							for (let step of steps) {
+								// the combination dim,step determines the face we are analyzing
 								let direction = {}
 								let box = {x: x, y: y, z: z}
 								direction[dim] = step
@@ -1500,6 +1504,7 @@ export class Voxel {
 								let neighbor = neighbors[0]
 								let vnodeOffset = vnodes.length
 								if (!this.getVoxelState(neighbor.x, neighbor.y, neighbor.z)) { // the neighbor is empty : draw face
+									// DRAW THE FACE
 									let tempSteps = {}
 									for (let d of dimensions) { tempSteps[d] = [-0.5 + offset + bezel, 0.5 - offset - bezel] }
 									tempSteps[dim] = [direction[dim]*0.5]
@@ -1514,7 +1519,39 @@ export class Voxel {
 										faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
 									} else {
 										faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n") 
-									}	
+									}
+									// Now extend the faces if needed
+									for (let shortdim of dimensions.filter(v => v!=dim) ) { // iterate over the the other dimensions in the face
+										for (let shortstep of steps) {
+											let direction = {}
+											direction[shortdim] = shortstep
+											let neighbors = getNeighbors(box , direction)
+											let neighbor = neighbors[0]
+											if (this.getVoxelState(neighbor.x, neighbor.y, neighbor.z)) { // neighbor present: extend face
+												// DRAW THE FACE EXTENSION on face dim, direction shortdim
+												let longdim = (dimensions.filter(v => v!=dim && v!=shortdim))[0]
+												let tempSteps={}
+												let vnodeOffset = vnodes.length
+												tempSteps[dim] = [0.5*step]
+												tempSteps[shortdim] = [(0.5 - offset - bezel)*shortstep, 0.5*shortstep]
+												tempSteps[longdim] = [(0.5 - offset - bezel)*-1, (0.5 - offset - bezel)]
+												for (let cx of tempSteps.x) {
+													for (let cy of tempSteps.y) {
+														for (let cz of tempSteps.z) {
+															vnodes.push("v " + (x + cx).toFixed(2) + " " + (y + cy).toFixed(2) + " " + (z + cz).toFixed(2) + '\n')
+														}
+													}
+												}
+												if (( (step == -1 && (dim == "x" || dim == "z") ) || (step == +1 && dim == "y") ) && (shortstep == +1) || 
+													( (step == +1 && (dim == "x" || dim == "z") ) || (step == -1 && dim == "y") ) && (shortstep == -1) ) {
+													faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
+												} else {
+													faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n") 
+												}
+			
+											}
+										}
+									}
 								}
 							}
 						}

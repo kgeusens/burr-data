@@ -1490,24 +1490,26 @@ export class Voxel {
 			for (let y = 0; y < this.y; y++) {
 				for (let x = 0; x < this.x; x++) {
 					// Looping over every potential box
+					let box = {x: x, y: y, z: z}
 					if (this.getVoxelState(x, y, z)) { // this box is not empty
 						//
 						// process the faces
 						// 
-						for (let dim of dimensions){
+						for (let dim of dimensions) {
 							for (let step of steps) {
 								// the combination dim,step determines the face we are analyzing
 								let direction = {}
-								let box = {x: x, y: y, z: z}
 								direction[dim] = step
 								let neighbors = getNeighbors(box , direction)
 								let neighbor = neighbors[0]
 								let vnodeOffset = vnodes.length
 								if (!this.getVoxelState(neighbor.x, neighbor.y, neighbor.z)) { // the neighbor is empty : draw face
+									//
 									// DRAW THE FACE
+									//
 									let tempSteps = {}
 									for (let d of dimensions) { tempSteps[d] = [-0.5 + offset + bezel, 0.5 - offset - bezel] }
-									tempSteps[dim] = [direction[dim]*0.5]
+									tempSteps[dim] = [direction[dim]*(0.5 - offset)]
 									for (let cx of tempSteps.x) {
 										for (let cy of tempSteps.y) {
 											for (let cz of tempSteps.z) {
@@ -1528,7 +1530,9 @@ export class Voxel {
 											let neighbors = getNeighbors(box , direction)
 											let neighbor = neighbors[0]
 											if (this.getVoxelState(neighbor.x, neighbor.y, neighbor.z)) { // neighbor present: extend face
+												//
 												// DRAW THE FACE EXTENSION on face dim, direction shortdim
+												//
 												let longdim = (dimensions.filter(v => v!=dim && v!=shortdim))[0]
 												let tempSteps={}
 												let vnodeOffset = vnodes.length
@@ -1548,13 +1552,56 @@ export class Voxel {
 												} else {
 													faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n") 
 												}
-			
 											}
 										}
 									}
 								}
 							}
 						}
+						//
+						// process the edges
+						//
+						let index = 0
+						for (let dimidx1 in dimensions.slice(0,2)) {
+							let dim1=dimensions[dimidx1]
+							for (let step1 of steps) {
+								for (let dim2 of dimensions.filter((v,i) => i>dimidx1) ) {
+									for (let step2 of steps) {
+										let direction1 = {}
+										direction1[dim1] = step1
+										let neighbor1 = getNeighbors(box , direction1)[0]
+										let direction2 = {}
+										direction2[dim2] = step2
+										let neighbor2 = getNeighbors(box , direction2)[0]
+										index++
+										if (!this.getVoxelState(neighbor1.x, neighbor1.y, neighbor1.z) && !this.getVoxelState(neighbor2.x, neighbor2.y, neighbor2.z) ) {
+											//
+											// DRAW THE BEZEL
+											//
+											let dimAxis = dimensions.filter(v => v!=dim1 && v!=dim2)
+											let tempOffset = {}
+											let vnodeOffset = vnodes.length
+											tempOffset[dimAxis] = -0.5 + offset + bezel; tempOffset[dim1]=(0.5 - offset)*step1; tempOffset[dim2]=(0.5 - offset - bezel)*step2
+											vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
+											tempOffset[dimAxis] = -0.5 + offset + bezel; tempOffset[dim1]=(0.5 - offset - bezel)*step1; tempOffset[dim2]=(0.5 - offset)*step2
+											vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
+											tempOffset[dimAxis] = +0.5 - offset - bezel; tempOffset[dim1]=(0.5 - offset - bezel)*step1; tempOffset[dim2]=(0.5 - offset)*step2
+											vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
+											tempOffset[dimAxis] = +0.5 - offset - bezel; tempOffset[dim1]=(0.5 - offset)*step1; tempOffset[dim2]=(0.5 - offset - bezel)*step2
+											vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
+											if ( [1, 4, 6, 7, 9, 12 ].includes(index)) {
+												faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n")
+											} else {
+												faces.push("f " + [(1 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n")
+											}
+										}
+									}
+								}
+							}
+						}
+						//
+						// process the corners
+						//
 					}
 				}
 			}

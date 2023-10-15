@@ -1509,7 +1509,7 @@ export class Voxel {
 									//
 									let tempSteps = {}
 									for (let d of dimensions) { tempSteps[d] = [-0.5 + offset + bezel, 0.5 - offset - bezel] }
-									tempSteps[dim] = [direction[dim]*(0.5 - offset)]
+									tempSteps[dim] = [step*(0.5 - offset)]
 									for (let cx of tempSteps.x) {
 										for (let cy of tempSteps.y) {
 											for (let cz of tempSteps.z) {
@@ -1536,7 +1536,7 @@ export class Voxel {
 												let longdim = (dimensions.filter(v => v!=dim && v!=shortdim))[0]
 												let tempSteps={}
 												let vnodeOffset = vnodes.length
-												tempSteps[dim] = [0.5*step]
+												tempSteps[dim] = [step*(0.5 - offset)]
 												tempSteps[shortdim] = [(0.5 - offset - bezel)*shortstep, 0.5*shortstep]
 												tempSteps[longdim] = [(0.5 - offset - bezel)*-1, (0.5 - offset - bezel)]
 												for (let cx of tempSteps.x) {
@@ -1602,6 +1602,29 @@ export class Voxel {
 						//
 						// process the corners
 						//
+						let cindex=0
+						for (let stepx of steps) {
+							for (let stepy of steps) {
+								for (let stepz of steps) {
+									cindex++
+									if (!this.getVoxelState(x + stepx, y, z) && !this.getVoxelState(x, y + stepy, z) && !this.getVoxelState(x, y, z + stepz)) {
+										//
+										// DRAW THE CORNER
+										//
+										console.log(cindex, stepx, stepy, stepz)
+										let vnodeOffset = vnodes.length
+										vnodes.push("v " + (x + stepx*(0.5 - offset)).toFixed(2) + " " + (y + stepy*(0.5 - offset - bezel)).toFixed(2) + " " + (z + stepz*(0.5 - offset - bezel)).toFixed(2) + '\n')
+										vnodes.push("v " + (x + stepx*(0.5 - offset - bezel)).toFixed(2) + " " + (y + stepy*(0.5 - offset)).toFixed(2) + " " + (z + stepz*(0.5 - offset - bezel)).toFixed(2) + '\n')
+										vnodes.push("v " + (x + stepx*(0.5 - offset - bezel)).toFixed(2) + " " + (y + stepy*(0.5 - offset - bezel)).toFixed(2) + " " + (z + stepz*(0.5 - offset)).toFixed(2) + '\n')
+										if ( [2, 3, 5, 8].includes(cindex)) {
+											faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
+										} else {
+											faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n")
+										}
+									}
+								}
+							}
+						}
 					}
 				}
 			}

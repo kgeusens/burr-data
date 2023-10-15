@@ -1567,32 +1567,67 @@ export class Voxel {
 							for (let step1 of steps) {
 								for (let dim2 of dimensions.filter((v,i) => i>dimidx1) ) {
 									for (let step2 of steps) {
+										let dimAxis = dimensions.filter(v => v!=dim1 && v!=dim2)
 										let direction1 = {}
 										direction1[dim1] = step1
 										let neighbor1 = getNeighbors(box , direction1)[0]
 										let direction2 = {}
 										direction2[dim2] = step2
 										let neighbor2 = getNeighbors(box , direction2)[0]
+										let direction12 = {}
+										direction12[dim1] = step1; direction12[dim2] = step2
+										let neighbor12 = getNeighbors(box , direction12)[0]
 										index++
-										if (!this.getVoxelState(neighbor1.x, neighbor1.y, neighbor1.z) && !this.getVoxelState(neighbor2.x, neighbor2.y, neighbor2.z) ) {
+										if ( (!this.getVoxelState(neighbor1.x, neighbor1.y, neighbor1.z) && !this.getVoxelState(neighbor2.x, neighbor2.y, neighbor2.z)) || 
+											 (this.getVoxelState(neighbor1.x, neighbor1.y, neighbor1.z) && this.getVoxelState(neighbor2.x, neighbor2.y, neighbor2.z) && !this.getVoxelState(neighbor12.x, neighbor12.y, neighbor12.z)) ) 
+										{
 											//
-											// DRAW THE BEZEL
+											// DRAW THE BEZEL (2 neighbors missing) or (L-SHAPED)
 											//
-											let dimAxis = dimensions.filter(v => v!=dim1 && v!=dim2)
 											let tempOffset = {}
 											let vnodeOffset = vnodes.length
-											tempOffset[dimAxis] = -0.5 + offset + bezel; tempOffset[dim1]=(0.5 - offset)*step1; tempOffset[dim2]=(0.5 - offset - bezel)*step2
+											// different distances for (L-SHAPED) versus (2 neighbors missing)
+											let dist1 = this.getVoxelState(neighbor1.x, neighbor1.y, neighbor1.z)?0.5:0.5-offset
+											let dist2 = this.getVoxelState(neighbor1.x, neighbor1.y, neighbor1.z)?0.5-offset:0.5-offset-bezel
+											tempOffset[dimAxis] = -0.5 + offset + bezel; tempOffset[dim1]=dist1*step1; tempOffset[dim2]=dist2*step2
 											vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
-											tempOffset[dimAxis] = -0.5 + offset + bezel; tempOffset[dim1]=(0.5 - offset - bezel)*step1; tempOffset[dim2]=(0.5 - offset)*step2
+											tempOffset[dimAxis] = -0.5 + offset + bezel; tempOffset[dim1]=dist2*step1; tempOffset[dim2]=dist1*step2
 											vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
-											tempOffset[dimAxis] = +0.5 - offset - bezel; tempOffset[dim1]=(0.5 - offset - bezel)*step1; tempOffset[dim2]=(0.5 - offset)*step2
+											tempOffset[dimAxis] = +0.5 - offset - bezel; tempOffset[dim1]=dist2*step1; tempOffset[dim2]=dist1*step2
 											vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
-											tempOffset[dimAxis] = +0.5 - offset - bezel; tempOffset[dim1]=(0.5 - offset)*step1; tempOffset[dim2]=(0.5 - offset - bezel)*step2
+											tempOffset[dimAxis] = +0.5 - offset - bezel; tempOffset[dim1]=dist1*step1; tempOffset[dim2]=dist2*step2
 											vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
 											if ( [1, 4, 6, 7, 9, 12 ].includes(index)) {
 												faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n")
 											} else {
 												faces.push("f " + [(1 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n")
+											}
+											// now check if we need to extend the bezel
+											for (let stepAxis of steps) {
+												let direction = {}
+												direction[dimAxis] = stepAxis
+												let neighbor = getNeighbors(box , direction)[0]
+												if (this.getVoxelState(neighbor.x, neighbor.y, neighbor.z) && !this.getVoxelState(neighbor1.x, neighbor1.y, neighbor1.z)) {
+													//
+													// DRAW THE BEZEL EXTENSION (not for L-SHAPED)
+													//
+													let tempOffset = {}
+													let vnodeOffset = vnodes.length
+													tempOffset[dimAxis] = 0.5*stepAxis; tempOffset[dim1]=dist1*step1; tempOffset[dim2]=dist2*step2
+													vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
+													tempOffset[dimAxis] = 0.5*stepAxis; tempOffset[dim1]=dist2*step1; tempOffset[dim2]=dist1*step2
+													vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
+													tempOffset[dimAxis] = (0.5 - offset - bezel)*stepAxis; tempOffset[dim1]=dist2*step1; tempOffset[dim2]=dist1*step2
+													vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
+													tempOffset[dimAxis] = (0.5 - offset - bezel)*stepAxis; tempOffset[dim1]=dist1*step1; tempOffset[dim2]=dist2*step2
+													vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
+													let product = dimAxis=="y"?step1 * step2 * stepAxis:-1*(step1 * step2 * stepAxis)
+													if (product == 1) {
+														faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n")
+													} else {
+														faces.push("f " + [(1 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n")
+													}
+												}
 											}
 										}
 									}
@@ -1611,7 +1646,6 @@ export class Voxel {
 										//
 										// DRAW THE CORNER
 										//
-										console.log(cindex, stepx, stepy, stepz)
 										let vnodeOffset = vnodes.length
 										vnodes.push("v " + (x + stepx*(0.5 - offset)).toFixed(2) + " " + (y + stepy*(0.5 - offset - bezel)).toFixed(2) + " " + (z + stepz*(0.5 - offset - bezel)).toFixed(2) + '\n')
 										vnodes.push("v " + (x + stepx*(0.5 - offset - bezel)).toFixed(2) + " " + (y + stepy*(0.5 - offset)).toFixed(2) + " " + (z + stepz*(0.5 - offset - bezel)).toFixed(2) + '\n')

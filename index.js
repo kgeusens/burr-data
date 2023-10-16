@@ -1691,6 +1691,7 @@ export class Voxel {
 										}
 									}
 									if (this.getVoxelState(x + stepx, y, z) && this.getVoxelState(x, y + stepy, z) && this.getVoxelState(x, y, z + stepz)) { // 3-SIDED
+										// 3-SIDED
 										if (!this.getVoxelState(x, y + stepy, z + stepz) && !this.getVoxelState(x + stepx, y, z + stepz) && !this.getVoxelState(x + stepx, y + stepy, z)) // no EDGED
 										{
 											//
@@ -1793,6 +1794,46 @@ export class Voxel {
 												faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n")
 											}
 											}
+									}
+									// Check for L-SHAPED
+									for (let dimFree of dimensions) {
+										let dim1 = dimensions.filter(v => v!= dimFree)[0]
+										let dim2 = dimensions.filter(v => v!= dimFree)[1]
+										let direction1 = {x:0, y:0, z:0};direction1[dim1] = step[dim1];let neighbor1=getNeighbors(box , direction1)[0]
+										let direction2 = {x:0, y:0, z:0};direction2[dim2] = step[dim2];let neighbor2=getNeighbors(box , direction2)[0]
+										let direction0 = {x:0, y:0, z:0};direction0[dimFree] = step[dimFree];let neighbor0=getNeighbors(box , direction0)[0]
+										let direction12 = {x:0, y:0, z:0};direction12[dim1] = step[dim1];direction12[dim2] = step[dim2];let neighbor12=getNeighbors(box , direction12)[0]
+										if (this.getVoxelState(neighbor1.x, neighbor1.y, neighbor1.z) && 
+											this.getVoxelState(neighbor2.x, neighbor2.y, neighbor2.z) && 
+											!this.getVoxelState(neighbor12.x, neighbor12.y, neighbor12.z) && 
+											!this.getVoxelState(neighbor0.x, neighbor0.y, neighbor0.z))
+										{
+											//
+											// DRAW L-SHAPED
+											//
+											let vnodeOffset = vnodes.length
+											let tempOffset = {}
+											let product = stepx*stepy*stepz
+											tempOffset[dim1]=(0.5-offset-bezel)*step[dim1];tempOffset[dim2]=(0.5-offset-bezel)*step[dim2];tempOffset[dimFree]=(0.5-offset)*step[dimFree]
+											vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
+											tempOffset[dim1]=(0.5)*step[dim1];tempOffset[dim2]=(0.5-offset-bezel)*step[dim2];tempOffset[dimFree]=(0.5-offset)*step[dimFree]
+											vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
+											tempOffset[dim1]=(0.5)*step[dim1];tempOffset[dim2]=(0.5-offset)*step[dim2];tempOffset[dimFree]=(0.5-offset-bezel)*step[dimFree]
+											vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
+											tempOffset[dim1]=(0.5-offset)*step[dim1];tempOffset[dim2]=(0.5)*step[dim2];tempOffset[dimFree]=(0.5-offset-bezel)*step[dimFree]
+											vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
+											tempOffset[dim1]=(0.5-offset-bezel)*step[dim1];tempOffset[dim2]=(0.5)*step[dim2];tempOffset[dimFree]=(0.5-offset)*step[dimFree]
+											vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
+											if (((product == +1)&&(dimFree=="x"||dimFree=="z")) || ((product == -1)&&(dimFree=="y"))) {
+												faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
+												faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n")
+												faces.push("f " + [(1 + vnodeOffset), (4 + vnodeOffset), (5 + vnodeOffset)].join(" ") + "\n")
+											} else {
+												faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n")
+												faces.push("f " + [(1 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
+												faces.push("f " + [(1 + vnodeOffset), (5 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n")
+											}
+										}
 									}
 								}
 							}

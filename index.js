@@ -479,6 +479,7 @@ export class Voxel {
 		}
 		return OBJ + vnodes + faces
 	}
+
 	test4(name = "shape", offset = 0.02, bezel = 0.05 ) {
 		function getNeighbors(box, direction) {
 			const { x=0, y=0, z=0 } = direction
@@ -529,9 +530,11 @@ export class Voxel {
 										}
 									}
 									if ( (step == -1) && (dim != "y") || (step == 1) && (dim == "y")) {
-										faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
+										faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n")
+										faces.push("f " + [(1 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
 									} else {
-										faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n") 
+										faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n") 
+										faces.push("f " + [(1 + vnodeOffset), (4 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n") 
 									}
 									// Now extend the faces if needed
 									for (let dim1 of dimensions.filter(v => v!=dim) ) { // iterate over the the other dimensions in the face
@@ -559,9 +562,11 @@ export class Voxel {
 												}
 												if (( (step == -1 && (dim == "x" || dim == "z") ) || (step == +1 && dim == "y") ) && (step1 == +1) || 
 													( (step == +1 && (dim == "x" || dim == "z") ) || (step == -1 && dim == "y") ) && (step1 == -1) ) {
-													faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
+													faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n")
+													faces.push("f " + [(1 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
 												} else {
-													faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n") 
+													faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n") 
+													faces.push("f " + [(1 + vnodeOffset), (4 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n") 
 												}
 											}
 										}
@@ -592,7 +597,8 @@ export class Voxel {
 													vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
 													tempOffset[dim] = (0.5 - offset)*step; tempOffset[dim1]=(0.5 - offset - bezel)*step1; tempOffset[dim2]=(0.5)*step2
 													vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
-													faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n")
+													faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
+													faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n")
 												}
 											}
 										}
@@ -640,9 +646,11 @@ export class Voxel {
 											tempOffset[dimAxis] = +0.5 - offset - bezel; tempOffset[dim1]=dist1*step1; tempOffset[dim2]=dist2*step2
 											vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
 											if ( [1, 4, 6, 7, 9, 12 ].includes(index)) {
-												faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n")
+												faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
+												faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n")
 											} else {
-												faces.push("f " + [(1 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n")
+												faces.push("f " + [(1 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
+												faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n")
 											}
 											// now check if we need to extend the bezel
 											for (let stepAxis of steps) {
@@ -665,9 +673,11 @@ export class Voxel {
 													vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
 													let product = dimAxis=="y"?step1 * step2 * stepAxis:-1*(step1 * step2 * stepAxis)
 													if (product == 1) {
-														faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n")
+														faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
+														faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n")
 													} else {
-														faces.push("f " + [(1 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n")
+														faces.push("f " + [(1 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
+														faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n")
 													}
 												}
 											}
@@ -716,9 +726,15 @@ export class Voxel {
 											vnodes.push("v " + (x + stepx*(0.5 - offset)).toFixed(2) + " " + (y + stepy*(0.5 - offset - bezel)).toFixed(2) + " " + (z + stepz*(0.5)).toFixed(2) + '\n')
 											vnodes.push("v " + (x + stepx*(0.5)).toFixed(2) + " " + (y + stepy*(0.5 - offset - bezel)).toFixed(2) + " " + (z + stepz*(0.5 - offset)).toFixed(2) + '\n')
 											if ( [2, 3, 5, 8].includes(cindex)) {
-												faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset), (5 + vnodeOffset), (6 + vnodeOffset)].join(" ") + "\n")
+												faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
+												faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n")
+												faces.push("f " + [(1 + vnodeOffset), (4 + vnodeOffset), (5 + vnodeOffset)].join(" ") + "\n")
+												faces.push("f " + [(1 + vnodeOffset), (5 + vnodeOffset), (6 + vnodeOffset)].join(" ") + "\n")
 											} else {
-												faces.push("f " + [(6 + vnodeOffset), (5 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset), (2 + vnodeOffset), (1 + vnodeOffset)].join(" ") + "\n")
+												faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n")
+												faces.push("f " + [(1 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
+												faces.push("f " + [(1 + vnodeOffset), (5 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n")
+												faces.push("f " + [(1 + vnodeOffset), (6 + vnodeOffset), (5 + vnodeOffset)].join(" ") + "\n")
 											}
 										}
 										// Case for 3-SIDED 1-EDGED
@@ -750,10 +766,12 @@ export class Voxel {
 												vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
 												if (((product == +1)&&(dimFree=="x"||dimFree=="z")) || ((product == -1)&&(dimFree=="y"))) {
 													faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
-													faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset), (5 + vnodeOffset)].join(" ") + "\n")
+													faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n")
+													faces.push("f " + [(1 + vnodeOffset), (4 + vnodeOffset), (5 + vnodeOffset)].join(" ") + "\n")
 												} else {
 													faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n")
-													faces.push("f " + [(1 + vnodeOffset), (5 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
+													faces.push("f " + [(1 + vnodeOffset), (5 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n")
+													faces.push("f " + [(1 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
 												}
 											}
 										}
@@ -783,9 +801,11 @@ export class Voxel {
 												tempOffset[dim1]=(0.5)*step[dim1];tempOffset[dim2]=(0.5-offset)*step[dim2];tempOffset[dimFull]=(0.5)*step[dimFull]
 												vnodes.push("v " + (x+tempOffset.x).toFixed(2) + " " + (y+tempOffset.y).toFixed(2) + " " + (z+tempOffset.z).toFixed(2) + '\n')
 												if (((product == +1)&&(dimFull=="x"||dimFull=="z")) || ((product == -1)&&(dimFull=="y"))) {
-													faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n")
+													faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
+													faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (4 + vnodeOffset)].join(" ") + "\n")
 												} else {
-													faces.push("f " + [(1 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n")
+													faces.push("f " + [(1 + vnodeOffset), (4 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
+													faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n")
 												}
 											}
 										}

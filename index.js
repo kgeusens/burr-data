@@ -480,7 +480,7 @@ export class Voxel {
 		return OBJ + vnodes + faces
 	}
 
-	test4(name = "shape", offset = 0.02, bezel = 0.05 ) {
+	createMesh(name = "shape", offset = 0.01, bezel = 0.05 ) {
 		function getNeighbors(box, direction) {
 			const { x=0, y=0, z=0 } = direction
 			let neighbors = []
@@ -895,9 +895,9 @@ export class Voxel {
 				}
 			}
 		}
-		removeDoubles(vnodes,faces)
-		for (let v of vnodes) OBJ += v + "\n"
-		for (let f of faces) OBJ += f + "\n"
+		let result = removeDoubles(vnodes,faces)
+		for (let v of result.vnodes) OBJ += v + "\n"
+		for (let f of result.faces) OBJ += f + "\n"
 		return OBJ
 	}
 }

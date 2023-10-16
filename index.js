@@ -1678,7 +1678,7 @@ export class Voxel {
 									cindex++
 									if (!this.getVoxelState(x + stepx, y, z) && !this.getVoxelState(x, y + stepy, z) && !this.getVoxelState(x, y, z + stepz)) {
 										//
-										// DRAW THE CORNER (triangle)
+										// DRAW THE CORNER (large triangle)
 										//
 										let vnodeOffset = vnodes.length
 										vnodes.push("v " + (x + stepx*(0.5 - offset)).toFixed(2) + " " + (y + stepy*(0.5 - offset - bezel)).toFixed(2) + " " + (z + stepz*(0.5 - offset - bezel)).toFixed(2) + '\n')
@@ -1777,6 +1777,22 @@ export class Voxel {
 												}
 											}
 										}
+										// case for 3-sided 3-edged
+										if (this.getVoxelState(x, y + stepy, z + stepz) && this.getVoxelState(x + stepx, y, z + stepz) && this.getVoxelState(x + stepx, y + stepy, z) && !this.getVoxelState(x + stepx, y + stepy, z+stepz))
+										{
+											//
+											// DRAW THE CORNER (SMALL triangle)
+											//
+											let vnodeOffset = vnodes.length
+											vnodes.push("v " + (x + stepx*(0.5)).toFixed(2) + " " + (y + stepy*(0.5 - offset)).toFixed(2) + " " + (z + stepz*(0.5)).toFixed(2) + '\n')
+											vnodes.push("v " + (x + stepx*(0.5)).toFixed(2) + " " + (y + stepy*(0.5)).toFixed(2) + " " + (z + stepz*(0.5 - offset)).toFixed(2) + '\n')
+											vnodes.push("v " + (x + stepx*(0.5 - offset)).toFixed(2) + " " + (y + stepy*(0.5)).toFixed(2) + " " + (z + stepz*(0.5)).toFixed(2) + '\n')
+											if ( [2, 3, 5, 8].includes(cindex)) {
+												faces.push("f " + [(1 + vnodeOffset), (2 + vnodeOffset), (3 + vnodeOffset)].join(" ") + "\n")
+											} else {
+												faces.push("f " + [(1 + vnodeOffset), (3 + vnodeOffset), (2 + vnodeOffset)].join(" ") + "\n")
+											}
+											}
 									}
 								}
 							}

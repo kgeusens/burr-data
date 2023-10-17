@@ -428,7 +428,7 @@ export class Voxel {
 		let indices = []
 		for (let v of result.vnodes) positions.push(v.split(" "))
 		for (let f of result.faces) indices.push(f.split(" "))
-		return {positions: positions, indices: indices}
+		return {positions: positions.flat(), indices: indices.flat()}
 	}
 	createMesh(offset = 0.01, bezel = 0.05, base=0 ) {
 		function getNeighbors(box, direction) {

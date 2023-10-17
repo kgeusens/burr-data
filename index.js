@@ -427,7 +427,9 @@ export class Voxel {
 		let positions = []
 		let indices = []
 		for (let v of result.vnodes) { positions.push(v.split(" ").map(v => Number(v))) }
-		for (let f of result.faces) indices.push(f.split(" ").map(v => Number(v)))
+		for (let f of result.faces)  {
+			let idx = f.split(" ").map(v => Number(v))
+			indices.push(idx[0], idx[2], idx[1]) } // faces should rotate other direction
 		return {positions: positions.flat(), indices: indices.flat()}
 	}
 	createMesh(offset = 0.01, bezel = 0.05, base=0 ) {

@@ -426,8 +426,8 @@ export class Voxel {
 		let result = this.createMesh(offset, bevel, 0)
 		let positions = []
 		let indices = []
-		for (let v of result.vnodes) positions.push(v.split(" "))
-		for (let f of result.faces) indices.push(f.split(" "))
+		for (let v of result.vnodes) { positions.push(v.split(" ").map(v => Number(v))) }
+		for (let f of result.faces) indices.push(f.split(" ").map(v => Number(v)))
 		return {positions: positions.flat(), indices: indices.flat()}
 	}
 	createMesh(offset = 0.01, bezel = 0.05, base=0 ) {

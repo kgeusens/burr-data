@@ -22,7 +22,7 @@ theXMPuzzle.meta={override: "done"}
 theXMPuzzle.meta={}
 //console.log(theXMPuzzle)//console.log(theXMPuzzle.comment)
 //console.log(theXMPuzzle.saveToJSON())
-let obj=theXMPuzzle.getShape(0).test4()
+let obj=theXMPuzzle.getShape(0).toOBJ()
 //console.log(theXMPuzzle.getShape(0))
 console.log(obj)
 //console.log(theXMPuzzle.moves)

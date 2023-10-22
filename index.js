@@ -1227,7 +1227,6 @@ export class WorldMap {
 		constraint.primaryRow[this._map.size - 1] = 0
 		constraint.secondaryRow[this._varimap.size - 1] = 0
 		for (let pos of smallWorldmap.positionList) {
-			let arr = [...this._map.keys()]
 			let fullidx = [...this._map.keys()].indexOf(pos)
 			let variidx = [...this._varimap.keys()].indexOf(pos)
 			if ((fullidx == -1) && (variidx == -1 )) return undefined

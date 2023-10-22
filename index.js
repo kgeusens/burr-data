@@ -1,5 +1,5 @@
 import {XMLBuilder, XMLParser} from 'fast-xml-parser';
-import {rotate, translate} from './burrUtils.js'
+import {rotate, rotatePoint, translate, translatePoint, rotateMap, translateMap} from './burrUtils.js'
 
 const XMLAlwaysArrayName = [
 	"voxel",
@@ -282,8 +282,19 @@ export class Solution {
 	}
 }
 
+class BoundingBox {
+	min= [0,0,0]
+	max= [0,0,0]
+	constructor(point) {
+		for (let idx in point)
+		{
+			this.min[idx] = this.max[idx] = point[idx]
+		}
+	}
+}
+
 export class Voxel {
-	private = { state: [], stateMap: {} }
+	private = { stateMap: {}, boundingBox: new BoundingBox, worldmap: new WorldMap() }
 	"@attributes"={x:1, y:1, z:1, type:0} // hx, hy, hz, name, weight
 	text="_"
 	constructor(flatObject = {}) {
@@ -305,7 +316,10 @@ export class Voxel {
 //		}
 		this.setSize(x, y, z)
 		this.stateString = text
+		this.update()
 	}
+	get boundingBox() { return this.private.boundingBox	}
+	get worldmap() { return this.private.worldmap}
 	get x() { return this["@attributes"].x*1}
 	set x(v) { this.setSize(v, this.y, this.z); return v }
 	get y() { return this["@attributes"].y*1}
@@ -382,6 +396,36 @@ export class Voxel {
 	getVoxelPosition(x, y, z) {
 		return this.private.stateMap[[x, y, z].join(" ")]
 	}
+	update() {
+		this.updateWorldMap()
+		this.updateBoundingBox() // depends on correct worldmap!
+	}
+	updateWorldMap(id=0) {
+		let theFilledMap=new Map()
+		let theVariMap=new Map()
+		for (let x=0;x<this.x;x++) {
+			for (let y=0;y<this.y;y++) { 
+				for (let z=0;z<this.z;z++) { 
+					if (this.getVoxelState(x, y, z) == 1) theFilledMap.set([x,y,z].join(" "), id)
+					else if (this.getVoxelState(x, y, z) == 2) theVariMap.set([x,y,z].join(" "), id)
+				}
+			}
+		}
+		this.private.worldmap = new WorldMap({map: theFilledMap, varimap: theVariMap})
+	}
+	updateBoundingBox() {
+		let wm = this.worldmap
+		let wmPoslist = wm.positionList
+		let bb = new BoundingBox(wmPoslist[0]?.split(" "))
+		for (let wmPosAsString of wmPoslist) {
+			let wmPosAsArray = wmPosAsString.split(" ")
+			for (let posIdx in wmPosAsArray) {
+				if (wmPosAsArray[posIdx] < bb.min[posIdx]) bb.min[posIdx] = Number(wmPosAsArray[posIdx])
+				if (wmPosAsArray[posIdx] > bb.max[posIdx]) bb.max[posIdx] = Number(wmPosAsArray[posIdx])
+			}
+		}
+		this.private.boundingBox = bb
+	}
 	getVoxelState(x,y,z) { 
 		let vp=this.getVoxelPosition(x,y,z); return vp? vp.state : 0 
 	}
@@ -389,17 +433,6 @@ export class Voxel {
 		let vp=this.getVoxelPosition(x, y, z)
 		if (!vp) this.private.stateMap[[x, y, z].join(" ")] = {state: s}
 		this.getVoxelPosition(x,y,z).state=s 
-	}
-	getWorldMap(id=0) {
-		let theMap={}
-		for (let x=0;x<this.x;x++) {
-			for (let y=0;y<this.y;y++) { 
-				for (let z=0;z<this.z;z++) { 
-					if (this.getVoxelState(x, y, z) == 1) theMap[[x,y,z].join(" ")] = id
-				}
-			}
-		}
-		return new WorldMap(theMap)
 	}
 	clone(orig) {
 		var { "@attributes" : { ...attrs}, ...props } = orig
@@ -852,6 +885,59 @@ export class Voxel {
 	}
 }
 
+export class VoxelInstance {
+	// This is not a data representation, but a helper class to facilitate the solver function (DLX from Donald A. Knuth)
+	// WorldMap has been updated to facilitate variVoxels
+	// it introduces boundingBox and hotspot
+	// it overrides the dimensions of the original voxel
+	// it rotates and translates the original voxel to place its boundingBox in the beginning of the first quadrant
+	voxel = {}
+	worldMap = {}
+	dimension = [0,0,0] // [x, y, z] is size of the boundingbox
+	offset = [0,0,0] // offset of the boundingBox
+	boundingBox
+	rotation
+	hotspot = [0,0,0] // folows the transformations, including the offset
+	get x() { return Number(this.dimension[0]) }
+	get y() { return Number(this.dimension[1]) }
+	get z() { return Number(this.dimension[2]) }
+	get worldmap() { return this.worldMap }
+	constructor(flatObject) {
+		// voxel is mandatory, rotation is optional, offset is optional
+		let {voxel, rotation = 0, offset = [0,0,0]} = flatObject
+		this.voxel = voxel
+		this.rotation = rotation
+		this.offset = offset
+		// first transform the corner opposite the 0,0,0 corner to find the final size
+  		// and the required shifts
+		let d = rotatePoint(voxel.boundingBox.max, rotation)
+		// calculate the amount the rotated coordinates must be translated
+		let trans = []
+		for (let i in d) trans[i] = d[i]<0?-d[i]:0
+		// calculate new size
+		for (let i in d) this.dimension[i] = Math.abs(d[i]) + 1
+		// update the worldmap. Include offset
+		this.worldMap = voxel.worldmap.getClone()
+		this.worldMap.rotate(rotation)
+		this.worldMap.translate({x: trans[0] + offset[0], y: trans[1] + offset[1], z: trans[2] + offset[2]})
+		// update the hotspot. Include offset
+		this.hotspot = rotatePoint(this.hotspot, rotation)
+		this.hotspot = translatePoint(this.hotspot, [trans[0] + offset[0], trans[1] + offset[1], trans[2] + offset[2]])
+		// calculate the boundingBox. Include offset
+		this.boundingBox = this.voxel.boundingBox
+		let bbMin = rotatePoint(this.boundingBox.min, rotation)
+		bbMin = translatePoint(bbMin, [trans[0] + offset[0], trans[1] + offset[1], trans[2] + offset[2]])
+		let bbMax = rotatePoint(this.boundingBox.max, rotation)
+		bbMax = translatePoint(bbMax, [trans[0] + offset[0], trans[1] + offset[1], trans[2] + offset[2]])
+		this.boundingBox.min[0] = Math.min(bbMin[0], bbMax[0])
+		this.boundingBox.min[1] = Math.min(bbMin[1], bbMax[1])
+		this.boundingBox.min[2] = Math.min(bbMin[2], bbMax[2])
+		this.boundingBox.max[0] = Math.max(bbMin[0], bbMax[0])
+		this.boundingBox.max[1] = Math.max(bbMin[1], bbMax[1])
+		this.boundingBox.max[2] = Math.max(bbMin[2], bbMax[2])
+	}
+}
+
 export class Result {
 	"@attributes" = {} // id
 	text
@@ -892,7 +978,6 @@ export class Metadata {
 		this.#parent=parent
 	}
 	get(target, prop, receiver) {
-		console.log("get")
 		let value = Reflect.get(...arguments);
 		return typeof value == 'function' ? value.bind(target) : value;		
 	}
@@ -1069,83 +1154,146 @@ export class WorldMap {
 	// map will contain entries of the form:
 	//   '1 2 3': 5
 	// meaning position { x:1, y: 2, z: 3} is occupied by piece 5
-	_map = {}
-	constructor(map = {}) {
-		this._map = map
-	}
-	get map() { return this._map }
-	set map(m) { this._map = m }
-	remap(v) {
-		for (pos in this.map){
-			this.map[pos] = v
+	// UPDATE: facilitate variable voxel with _varimap
+	// empty voxels are NOT represented in this data structure
+	// _arr is the sequential array of filled voxels (value is '1 2 3')
+	// _variarr is the sequential array of variable voxels
+	_map // Map()
+	_varimap // Map()
+	constructor(options = {}) {
+		let { map = new Map(), varimap = new Map(), copy = false} = options
+		if (copy) {
+			this._map = new Map(map)
+			this._varimap = new Map(varimap)
 		}
-		return this.map
+		else {
+			this._map = map
+			this._varimap = varimap
+		}
+	}
+	get positionList() {
+		return [...this._map.keys()]
+	}
+	get filledEntries() {
+		return this._map.entries()
+	}
+	get variEntries() {
+		return this._varimap.entries()
+	}
+	getClone() {
+		let newMap = new WorldMap({map: this._map, varimap: this._varimap, copy:true})
+		return newMap
+	}
+	remap(v) {
+		for (let pos of this._map) this._map.set(pos,v)
+		for (let pos of this._varimapmap) this._varimap.set(pos,v)
+		return this
 	}
 	get pieceList() {
-		return Object.values(this.map).filter((val, idx, arr) => arr.indexOf(val) === idx ).sort()
+		return [...this._map.values()].filter((val, idx, arr) => arr.indexOf(val) === idx ).sort((a,b)=>a-b)
 	}
 	filter(searchValues) {
 		// searchValues should be an array of values to return
 		if (!Array.isArray(searchValues)) searchValues = [searchValues]
-		return new WorldMap(Object.fromEntries( Object.entries(this.map).filter((val, idx, arr) => searchValues.includes(val[1]))))
+		return new WorldMap( {
+				map: new Map([...this._map.entries()].filter( entry => searchValues.includes(entry[1]))),
+				varimap: new Map([...this._varimap.entries()].filter( entry => searchValues.includes(entry[1]))),
+			} )
 	}
 	delete(searchValues) {
-		// searchValues should be an array of values to return
-		let delMap = this.filter(searchValues)
-		for (let pos in delMap.map) {
-			delete this._map[pos]
-		}
+		// searchValues should be an array of values to delete
+		if (!Array.isArray(searchValues)) searchValues = [searchValues]
+		this._map.forEach((val, pos) => {if (searchValues.includes(val)) this._map.delete(pos)})
+		this._varimap.forEach((val, pos) => {if (searchValues.includes(val)) this._varimap.delete(pos)})
+		return this
 	}
-	canPlace(map) {
-		for (let pos in map) {
-			if (pos in this.map) {
-				console.log("conflict", pos, this.map[pos])
+	canPlace(worldmap) {
+		// no need to check varimap
+		for (let pos of worldmap.positions) {
+			if (this._map.has(pos)) {
 				return false
 			}
 		}
 		return true
 	}
+	getDLXmap(smallWorldmap) {
+		// This is specific for the Dancing Link algorithm (algoritm X) of Donald A. Knuth 
+		// See https://www.npmjs.com/package/dancing-links
+		// This transforms smallWorldmap into a constraint row in the matrix.
+		// return undefined if there is at least one voxel that covers a hole (should not happen)
+		// "This" worldmap is the reference (header row) to which the row should map.
+		let constraint = {data:{} , primaryRow : [], secondaryRow : []}
+		// hack to make sure the sparse arrays have the correct "length"
+		constraint.primaryRow[this._map.size - 1] = 0
+		constraint.secondaryRow[this._varimap.size - 1] = 0
+		for (let pos of smallWorldmap.positionList) {
+			let arr = [...this._map.keys()]
+			let fullidx = [...this._map.keys()].indexOf(pos)
+			let variidx = [...this._varimap.keys()].indexOf(pos)
+			if ((fullidx == -1) && (variidx == -1 )) return undefined
+			if ( fullidx != -1) constraint.primaryRow[fullidx] = 1
+			else constraint.secondaryRow[variidx] = 1
+		}
+		return constraint
+	}
 	place(worldmap) {
-		Object.assign(this._map, worldmap.map)
-		return this.map
+		for ( [pos, val] of worldmap.filledEntries) {
+			this._map.set(pos,val)
+		}
+		for ( [pos, val] of worldmap.variEntries) {
+			this._varimap.set(pos,val)
+		}
+		return this
 	}
 	rotate(idx) {
-		let result = rotate(this.map, idx)
-		this.map = result
-		return result
+		// in place rotation
+		this._map = rotateMap(this.filledEntries, idx)
+		this._varimap = rotateMap(this.variEntries, idx)
+		return this
 	}
 	translate(translation) {
-		let result = translate(this.map, translation)
-		this.map = result
-		return result
+		// in place translation
+		this._map = translateMap(this.filledEntries, translation)
+		this._varimap = translateMap(this.variEntries, translation)
+		return this
+	}
+	translateToClone(translation) {
+		let clone = new WorldMap( { map: translateMap(this.filledEntries, translation), varimap: translateMap(this.variEntries, translation) } )
+		return clone
+	}
+	rotateToClone(idx) {
+		let clone = new WorldMap( { map: rotateMap(this.filledEntries, idx), varimap: rotateMap(this.variEntries, idx) } )
+		return clone
 	}
 	checkMoveConflicts(pieceList, translation) {
 		// Array. Return the list of pieces that interfere with our translated position
+		// Only need to check map (varimap not important)
 		if (!Array.isArray(pieceList)) pieceList = [ pieceList ]
 		let pieceMap = this.filter(pieceList).translate(translation)
 		let conflictList = []
-		for (let pos in pieceMap) {
-			if (this.map[pos] >= 0) {
+		for ([pos, val] of pieceMap.filledEntries) {
+			if (this._map.has(pos)) {
 				// something is there
-				if (pieceList.includes(this.map[pos])) {
+				if (pieceList.includes(this._map.get(pos))) {
 					// it is one of our own pieces
 				}
 				else {
 					// we have a conflict, add the conflicting piece to the stack
-					if (!conflictList.includes(this.map[pos])) conflictList.push(this.map[pos])
+					if (!conflictList.includes(this._map.get(pos))) conflictList.push(this._map.get(pos))
 				}
 			}
 		}
-		return conflictList.sort()
+		return conflictList.sort((a,b)=>a-b)
 	}
 	canMove(pieceList, translation) {
 		// true or false, check if we can move the piecList in the translation direction
+		// Only need to check map (varimap not important)
 		if (!Array.isArray(pieceList)) pieceList = [ pieceList ]
 		let pieceMap = this.filter(pieceList).translate(translation)
-		for (let pos in pieceMap) {
-			if (this.map[pos] >= 0) {
+		for ([pos, val] of pieceMap.filledEntries) {
+			if (this._map.has(pos)) {
 				// something is there
-				if (pieceList.includes(this.map[pos])) {
+				if (pieceList.includes(this._map.get(pos))) {
 					// it is one of our own pieces
 				}
 				else {
@@ -1158,6 +1306,7 @@ export class WorldMap {
 	}
 	getMovingPiecelist(pieceList, translation) {
 		// starting from pieceList, extend to all the pieces we would drag along in the translation direction
+		// Only need to check map (varimap not important)
 		if (!Array.isArray(pieceList)) pieceList = [ pieceList ]
 		let theList = pieceList
 		let conflicts=this.checkMoveConflicts(theList, translation)
@@ -1275,7 +1424,7 @@ export class Puzzle {
             let shape=this.shapes.voxel[shapeID]
 			let rotationIndex = pieceMap[pieceID].rotation
 			let position = piecePositions[pieceID]
-			let shapeMap = shape.getWorldMap(pieceID)
+			let shapeMap = shape.worldmap.getClone().remap(pieceID)
 			shapeMap.rotate(rotationIndex)
 			shapeMap.translate(position)
 			worldMap.place(shapeMap)

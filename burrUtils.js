@@ -193,6 +193,45 @@ export function rotate(stateObjects, idx = 0) {
   return result
 }
 
+export function rotateMap(map, idx = 0) {
+  // map is in the form of Map.entries() and is iterable in for..of
+  // returns a new map
+  let rotation = rotationMatrices[idx]
+  let result=new Map()
+  for (let [pos, val] of map) {
+    let posArray = pos.split(" ")
+    let x=Number(posArray[0])
+    let y=Number(posArray[1])
+    let z=Number(posArray[2])
+    let newPosArray = [ x*rotation[0] +y*rotation[1] +z*rotation[2], x*rotation[3] + y*rotation[4] + z*rotation[5], x*rotation[6] + y*rotation[7] + z*rotation[8]]
+    result.set(newPosArray.join(" "),val)
+  }
+  return result
+}
+
+export function translateMap(map, vector) {
+  // map is in the form of Map.entries() and is iterable in for..of
+  // returns a new map
+  var { x=0, y=0, z=0 } = vector
+  let result=new Map()
+  for (let [pos, val] of map) {
+    let posArray = pos.split(" ")
+    let xv=Number(posArray[0])
+    let yv=Number(posArray[1])
+    let zv=Number(posArray[2])
+    let newPosArray = [ x*1+xv, y*1+yv, z*1+zv]
+    result.set(newPosArray.join(" "),val)
+  }
+  return result
+}
+
+export function rotatePoint(point, idx = 0) {
+  // point is an array [x, y, z]
+  let rotation = rotationMatrices[idx]
+  let result = [ Number(point[0]*rotation[0] +point[1]*rotation[1] +point[2]*rotation[2]), Number(point[0]*rotation[3] + point[1]*rotation[4] + point[2]*rotation[5]), Number(point[0]*rotation[6] + point[1]*rotation[7] + point[2]*rotation[8])]
+  return result
+}
+
 export function translate(stateObjects, vector) {
   var { x=0, y=0, z=0 } = vector
   let result={}
@@ -204,5 +243,11 @@ export function translate(stateObjects, vector) {
     let newStateArray = [ Number(x*1+xv), Number(y*1+yv), Number(z*1+zv)]
     result[newStateArray.join(" ")]=stateObjects[state]
   }
+  return result
+}
+
+export function translatePoint(point, vector) {
+  // point is an array [x, y, z]
+  let result = [ Number(point[0]*1 + vector[0]), Number(point[1]*1 + vector[1]), Number(point[2]*1 + vector[2])]
   return result
 }

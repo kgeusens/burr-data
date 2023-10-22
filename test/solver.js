@@ -110,6 +110,8 @@ class Solution {
     #instances
     #worldmapList
     #positionList
+    // Pass a single solution from the assembler.
+    // Parse the information from the data property
     // instances are references to VoxelInstances created by the assembler. VoxelInstances are pre-translated over hotspot.
     // rotation: the rotation index applied to the voxel
     // hotspot : the default translation applied to the rotated voxel
@@ -137,6 +139,7 @@ class Solution {
 
 class Solver {
     #start
+    // pass a Solution instance to the solver
     constructor(solution) {
         this.#start=solution
     }
@@ -152,3 +155,6 @@ let solutions = DLX.findAll(a.getDLXmatrix())
 //a.getDLXmatrix()
 console.profileEnd()
 console.log(solutions.length)
+let solution = new Solution(solutions[0])
+let solver = new Solver(solution)
+

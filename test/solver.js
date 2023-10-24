@@ -105,15 +105,15 @@ class Assembler {
     }
 }
 
-// I think "Solution" can be the representation of a search node in the tree
-class Solution {
+// I think "Node" can be the representation of a search node in the tree
+class Node {
     pieceList = [] // static throughout the searchtree
     rotationList = [] // static throughout the searchtree
     hotspotList = [] // static throughout the searchtree
     offsetList = [] // changes throughout the searchtree.
 //    #positionList = [] // calculated based on hostpost and offset
-    #instances = [] // VoxelInxstances of the rotated voxels (boundingBox starting at [0,0,0]), static
-    #worldmapList = [] // worldmaps of the instances, static
+    instances = [] // VoxelInxstances of the rotated voxels (boundingBox starting at [0,0,0]), static
+    worldmapList = [] // static worldmaps of the instances, remapped to its index in this list. eg worldmapList[2] is remapped to 2
     id
     parent=null
     root=null
@@ -129,9 +129,12 @@ class Solution {
     constructor(parentObject, movingPieceList, translation = [0,0,0]) {
         if (parentObject) {
             this.root = parentObject.root
+            this.parent = parentObject
             this.pieceList = parentObject.pieceList
             this.rotationList = parentObject.rotationList
             this.hotspotList = parentObject.hotspotList
+            this.instances = parentObject.instances
+            this.worldmapList = parentObject.worldmapList //
             this.offsetList = [...parentObject.offsetList]
             if (movingPieceList) {
                 for (let idx in this.pieceList) {
@@ -141,13 +144,10 @@ class Solution {
                     }
                 }
             }
-            this.#instances = parentObject.instances
-            this.#worldmapList = parentObject.worldmapList //
             // ID = the concatenation of the positionList, but normalized to the first element at [0,0,0]
             let pl = this.positionList
             let firstPos = pl[0]
             this.id = pl.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).flat().join(" ")
-            this.parent = parentObject
         }
         else {
             this.root = this
@@ -158,20 +158,10 @@ class Solution {
     }
     getWorldmap() {
         let resultWM = new DATA.WorldMap()
-        for (let idx in this.#worldmapList) {
-            resultWM.place(this.#worldmapList[idx].translateToClone(this.offsetList[idx]).remap(this.pieceList[idx]))
+        for (let idx in this.worldmapList) {
+            resultWM.place(this.worldmapList[idx].translateToClone(this.offsetList[idx]))
         }
         return resultWM
-    }
-    reposition(movingPieceList, transition) {
-        // just update the offset of the pieces in movingPieceList
-        // movingPieceList is an array, the values are the ids into the problem shapelist (just like pieceList is too)
-        for (let idx in this.pieceList) {
-            if (movingPieceList.includes(this.pieceList[idx])) {
-                let offset = this.offsetList[idx]
-                for (let i in offset) offset[i] += translation[i]
-            }
-        }
     }
     setFromAssembly(assembly) {
         // assembly is an array of pieces, it contains a property called "data" with info that we passed to the assembler.
@@ -180,27 +170,11 @@ class Solution {
         this.rotationList = assembly.map(v => Number(v.data.rotation))
         this.hotspotList = assembly.map(v => v.data.hotspot)
         this.offsetList = assembly.map(v => [v.data.offset.x, v.data.offset.y, v.data.offset.z])
-        this.#instances = assembly.map(v => v.data.instance)
-        this.#worldmapList = this.#instances.map(v => v.worldmap)
+        this.instances = assembly.map(v => v.data.instance)
+        this.worldmapList = this.instances.map((v,idx) => v.worldmap.remap(idx))
         // ID = the concatenation of the positionList, but normalized to the first element at [0,0,0]
         let firstPos = this.positionList[0]
         this.id = this.positionList.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).flat().join(" ")
-    }
-}
-
-class Node extends Solution {
-    parent
-    direction
-    constructor() {
-
-    }
-}
-
-class Solver {
-    #start
-    // pass a Solution instance to the solver
-    constructor(solution) {
-        this.#start=solution
     }
 }
 
@@ -240,14 +214,10 @@ const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 let a = new Assembler(theXMPuzzle)
 console.profile()
 let solutions = DLX.findAll(a.getDLXmatrix())
-//a.getDLXmatrix()
 console.profileEnd()
 console.log(solutions.length)
-let solution = new Solution()
-solution.setFromAssembly(solutions[0])
-let solver = new Solver(solution)
-let node = new Solution()
-node.setFromAssembly(solutions[0])
-console.log(node)
-console.log(new Solution(node, [1], [1,2,3]))
+let rootNode = new Node()
+rootNode.setFromAssembly(solutions[0])
+let node = new Node(rootNode, [1], [1,2,3])
+console.log(node.getWorldmap())
 

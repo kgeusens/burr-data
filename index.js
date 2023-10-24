@@ -1185,8 +1185,8 @@ export class WorldMap {
 		return newMap
 	}
 	remap(v) {
-		for (let pos of this._map) this._map.set(pos,v)
-		for (let pos of this._varimapmap) this._varimap.set(pos,v)
+		for (let pos of this._map.keys()) this._map.set(pos,v)
+		for (let pos of this._varimap.keys()) this._varimap.set(pos,v)
 		return this
 	}
 	get pieceList() {
@@ -1236,10 +1236,10 @@ export class WorldMap {
 		return constraint
 	}
 	place(worldmap) {
-		for ( [pos, val] of worldmap.filledEntries) {
+		for ( let [pos, val] of worldmap.filledEntries) {
 			this._map.set(pos,val)
 		}
-		for ( [pos, val] of worldmap.variEntries) {
+		for ( let [pos, val] of worldmap.variEntries) {
 			this._varimap.set(pos,val)
 		}
 		return this

@@ -105,11 +105,18 @@ class Assembler {
     }
 }
 
+// I think "Solution" can be the representation of a search node in the tree
 class Solution {
-    #raw
-    #instances
-    #worldmapList
-    #positionList
+    pieceList = [] // static throughout the searchtree
+    rotationList = [] // static throughout the searchtree
+    hotspotList = [] // static throughout the searchtree
+    offsetList = [] // changes throughout the searchtree.
+//    #positionList = [] // calculated based on hostpost and offset
+    #instances = [] // VoxelInxstances of the rotated voxels (boundingBox starting at [0,0,0]), static
+    #worldmapList = [] // worldmaps of the instances, static
+    id
+    parent=null
+    root=null
     // Pass a single solution from the assembler.
     // Parse the information from the data property
     // instances are references to VoxelInstances created by the assembler. VoxelInstances are pre-translated over hotspot.
@@ -118,15 +125,36 @@ class Solution {
     // offset : the additional translation for the VoxelInstance as calculated by the assembler
     // position : Sum of offset and hotspot. The full transformation for a voxel is determined by (rotation, position)
     // worldmap : worldmap of the instance. Still need to translate over offset to reflect correct state in solution.
-    constructor(solution) {
-        this.#raw=solution
-        this.pieceList = solution.map(v => Number(v.data.id))
-        this.rotationList = solution.map(v => Number(v.data.rotation))
-        this.hotspotList = solution.map(v => v.data.hotspot)
-        this.offsetList = solution.map(v => v.data.offset)
-        this.#positionList = solution.map(v => [v.data.hotspot[0] + v.data.offset.x,v.data.hotspot[1] + v.data.offset.y,v.data.hotspot[2] + v.data.offset.z])
-        this.#instances = solution.map(v => v.data.instance)
-        this.#worldmapList = this.#instances.map(v => v.worldmap)
+    // parent : undefined by default, but needed when this is used as a node in the solution tree. Points back to the previous step.
+    constructor(parentObject, movingPieceList, translation = [0,0,0]) {
+        if (parentObject) {
+            this.root = parentObject.root
+            this.pieceList = parentObject.pieceList
+            this.rotationList = parentObject.rotationList
+            this.hotspotList = parentObject.hotspotList
+            this.offsetList = [...parentObject.offsetList]
+            if (movingPieceList) {
+                for (let idx in this.pieceList) {
+                    if (movingPieceList.includes(this.pieceList[idx])) {
+                        let offset = this.offsetList[idx]
+                        for (let i in offset) offset[i] += translation[i]
+                    }
+                }
+            }
+            this.#instances = parentObject.instances
+            this.#worldmapList = parentObject.worldmapList //
+            // ID = the concatenation of the positionList, but normalized to the first element at [0,0,0]
+            let pl = this.positionList
+            let firstPos = pl[0]
+            this.id = pl.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).flat().join(" ")
+            this.parent = parentObject
+        }
+        else {
+            this.root = this
+        }
+    }
+    get positionList() { 
+        return this.hotspotList.map((v, idx) => [v[0] + this.offsetList[idx][0],v[1] + this.offsetList[idx][1],v[2] + this.offsetList[idx][2]])
     }
     getWorldmap() {
         let resultWM = new DATA.WorldMap()
@@ -134,6 +162,37 @@ class Solution {
             resultWM.place(this.#worldmapList[idx].translateToClone(this.offsetList[idx]).remap(this.pieceList[idx]))
         }
         return resultWM
+    }
+    reposition(movingPieceList, transition) {
+        // just update the offset of the pieces in movingPieceList
+        // movingPieceList is an array, the values are the ids into the problem shapelist (just like pieceList is too)
+        for (let idx in this.pieceList) {
+            if (movingPieceList.includes(this.pieceList[idx])) {
+                let offset = this.offsetList[idx]
+                for (let i in offset) offset[i] += translation[i]
+            }
+        }
+    }
+    setFromAssembly(assembly) {
+        // assembly is an array of pieces, it contains a property called "data" with info that we passed to the assembler.
+        // Here we deconstruct that information into separate arrays.
+        this.pieceList = assembly.map(v => Number(v.data.id))
+        this.rotationList = assembly.map(v => Number(v.data.rotation))
+        this.hotspotList = assembly.map(v => v.data.hotspot)
+        this.offsetList = assembly.map(v => [v.data.offset.x, v.data.offset.y, v.data.offset.z])
+        this.#instances = assembly.map(v => v.data.instance)
+        this.#worldmapList = this.#instances.map(v => v.worldmap)
+        // ID = the concatenation of the positionList, but normalized to the first element at [0,0,0]
+        let firstPos = this.positionList[0]
+        this.id = this.positionList.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).flat().join(" ")
+    }
+}
+
+class Node extends Solution {
+    parent
+    direction
+    constructor() {
+
     }
 }
 
@@ -145,6 +204,35 @@ class Solver {
     }
 }
 
+/*
+A node is an item in the searchtree, and represents a number of pieces and their positions.
+PREPARE(node) : 
+prepares the full list of other nodes that can be reached in any direction, 
+unless if it leads to a separation: in that case only the separation node is returned (the list is a singleton).
+
+pseudo code:
+0. moveslist = [] (empty list of nodes)
+1. loop over the pieces (p) in the node
+    A. loop over the 4 directions (d)
+        0. mplcache = [] (empty)
+        a. calculate mpl (the moving piece list) for piece p in direction d
+            i.  if mpl is "everything" then skip and go to next direction
+            i.  if mpl already in mplcache, skip and go to next direction
+                else add mpl to mplcache
+            ii. calculate maxMoves based on the bounding boxes of mpl and the node
+            iii.loop over the steps (s) from 1 to maxMoves
+                - check if mpl can move s steps in direction d
+                - if so, 
+                    + add a new node to the moveslist for the new positions of mpl
+                    + if s == maxMoves, then this is a separation. STOP and return moveslist = [node] (singleton)
+                - if not, skip and go to the next direction
+2. return moveslist
+
+for performance reasons, calculating mpl and the boundingBoxes can be done in 1 function
+
+*/
+
+
 // Read a plain text xml file and load it (in the xmpuzzle format)
 const xmpuzzleFile = readFileSync("misusedKey.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
@@ -155,6 +243,11 @@ let solutions = DLX.findAll(a.getDLXmatrix())
 //a.getDLXmatrix()
 console.profileEnd()
 console.log(solutions.length)
-let solution = new Solution(solutions[0])
+let solution = new Solution()
+solution.setFromAssembly(solutions[0])
 let solver = new Solver(solution)
+let node = new Solution()
+node.setFromAssembly(solutions[0])
+console.log(node)
+console.log(new Solution(node, [1], [1,2,3]))
 

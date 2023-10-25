@@ -2,6 +2,7 @@ import * as DATA from '../index.js'
 import { readFileSync} from 'fs'
 import { rotatePoint, rotate } from '../burrUtils.js'
 import * as DLX from 'dancing-links'
+import { log } from 'console'
 
 // https://billcutlerpuzzles.com/docs/CA6PB/analyzing.html
 
@@ -85,7 +86,7 @@ class Assembler {
                 for (let x = rbb.min[0] - pbb.min[0]; x <= rbb.max[0] - pbb.max[0];x++) {
                     for (let y = rbb.min[1] - pbb.min[1]; y <= rbb.max[1] - pbb.max[1];y++) {
                         for (let z = rbb.min[2] - pbb.min[2]; z <= rbb.max[2] - pbb.max[2];z++) {
-                            let offset = {x:x, y:y, z:z}
+                            let offset = [x, y, z]
                             let wm = rotatedInstance.worldmap.translateToClone(offset)
                             let map = r.worldmap.getDLXmap(wm)
                             if (map) {
@@ -157,7 +158,7 @@ class Node {
     get positionList() { 
         return this.hotspotList.map((v, idx) => [v[0] + this.offsetList[idx][0],v[1] + this.offsetList[idx][1],v[2] + this.offsetList[idx][2]])
     }
-    getWorldmap() {
+    getWorldmap(pieceList) {
         let resultWM = new DATA.WorldMap()
         for (let idx in this.worldmapList) {
             resultWM.place(this.worldmapList[idx].translateToClone(this.offsetList[idx]))
@@ -170,7 +171,7 @@ class Node {
         this.pieceList = assembly.map(v => Number(v.data.id))
         this.rotationList = assembly.map(v => Number(v.data.rotation))
         this.hotspotList = assembly.map(v => v.data.hotspot)
-        this.offsetList = assembly.map(v => [v.data.offset.x, v.data.offset.y, v.data.offset.z])
+        this.offsetList = assembly.map(v => [v.data.offset[0], v.data.offset[1], v.data.offset[2]])
         this.instances = assembly.map(v => v.data.instance)
         this.worldmapList = this.instances.map((v,idx) => v.worldmap.remap(idx))
         // ID = the concatenation of the positionList, but normalized to the first element at [0,0,0]
@@ -218,12 +219,18 @@ function prepare2(node) {
 
 function prepare(node) {
     function getMovingPiecelist(idxList, translation) {
-        return wm.getMovingPiecelist(idxList, {x: translation[0], y: translation[1], z: translation[2]})
+        return wm.getMovingPiecelist(idxList, translation)
+    }
+    function canMove(idxList, translation) {
+        let pl = wm.getMovingPiecelist(idxList, translation)
+        return (pl.length == idxList.length)
     }
     let moveslist = []
     let wm = node.getWorldmap()
-    let allDirections = [[1,0,0], [-1,0,0], [0, 1,0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]
     let mplCache = [] // 0
+    // DEBUG START
+//    console.log("debug",wm.getMovingPiecelist([1], [1,0,0]))
+    // DEBUG END
     for (let pidx in node.pieceList) { // 1
         for (let dim of [0,1,2]) {
             for (let minstep of [1, -1]) {
@@ -233,9 +240,25 @@ function prepare(node) {
                 if (mpl.length == node.pieceList.length) continue // i
                 let newNode = new Node(node, mpl, dir)
                 if (mplCache.includes(newNode.id)) continue // i
+                console.log("init", dir, pidx*1, mpl)
                 mplCache.push(newNode.id)
                 moveslist.push(newNode)
                 // ii.
+                // test with dummy maxMoves
+                let maxMoves = 10
+                let move = 2
+                while (move <= maxMoves) {
+                    dir[dim]=minstep*move
+                    if (canMove(mpl, dir)) {
+                        console.log("step", dir, pidx*1, mpl)
+                        let newNode = new Node(node, mpl, dir)
+                        if (mplCache.includes(newNode.id)) break // i
+                        mplCache.push(newNode.id)
+                        moveslist.push(newNode)
+                    } 
+                    else break
+                    move++
+                }
             }
         }
     }   
@@ -252,8 +275,10 @@ let solutions = DLX.findAll(a.getDLXmatrix())
 console.log(solutions.length)
 let rootNode = new Node()
 rootNode.setFromAssembly(solutions[0])
+//console.log(solutions[0])
+//for (let i in solutions[0]) { console.log(solutions[0][i].data.instance.worldmap.translate(solutions[0][i].data.offset))}
 let node = new Node(rootNode, [1], [1,2,3])
-console.profile()
+//console.profile()
 console.log(prepare(rootNode).length)
-console.profileEnd()
+//console.profileEnd()
 

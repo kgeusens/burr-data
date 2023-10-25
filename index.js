@@ -919,7 +919,7 @@ export class VoxelInstance {
 		// update the worldmap. Include offset
 		this.worldMap = voxel.worldmap.getClone()
 		this.worldMap.rotate(rotation)
-		this.worldMap.translate({x: trans[0] + offset[0], y: trans[1] + offset[1], z: trans[2] + offset[2]})
+		this.worldMap.translate([trans[0] + offset[0], trans[1] + offset[1], trans[2] + offset[2]])
 		// update the hotspot. Include offset
 		this.hotspot = rotatePoint(this.hotspot, rotation)
 		this.hotspot = translatePoint(this.hotspot, [trans[0] + offset[0], trans[1] + offset[1], trans[2] + offset[2]])
@@ -1257,7 +1257,9 @@ export class WorldMap {
 		return this
 	}
 	translateToClone(translation) {
-		let clone = new WorldMap( { map: translateMap(this.filledEntries, translation), varimap: translateMap(this.variEntries, translation) } )
+		let clone = new WorldMap( { 
+			map: translateMap(this.filledEntries, translation), 
+			varimap: translateMap(this.variEntries, translation) } )
 		return clone
 	}
 	rotateToClone(idx) {
@@ -1288,8 +1290,8 @@ export class WorldMap {
 		// true or false, check if we can move the piecList in the translation direction
 		// Only need to check map (varimap not important)
 		if (!Array.isArray(pieceList)) pieceList = [ pieceList ]
-		let pieceMap = this.filter(pieceList).translate(translation)
-		for ([pos, val] of pieceMap.filledEntries) {
+		let pieceMap = this.filter(pieceList).translate([translation.x,translation.y,translation.z])
+		for (let [pos, val] of pieceMap.filledEntries) {
 			if (this._map.has(pos)) {
 				// something is there
 				if (pieceList.includes(this._map.get(pos))) {
@@ -1307,7 +1309,7 @@ export class WorldMap {
 		// starting from pieceList, extend to all the pieces we would drag along in the translation direction
 		// Only need to check map (varimap not important)
 		if (!Array.isArray(pieceList)) pieceList = [ pieceList ]
-		let theList = pieceList
+		let theList = [...pieceList]
 		let conflicts=this.checkMoveConflicts(theList, translation)
 		while (conflicts.length > 0) {
 			theList.push(...conflicts)

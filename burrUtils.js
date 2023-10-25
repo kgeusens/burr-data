@@ -209,17 +209,16 @@ export function rotateMap(map, idx = 0) {
   return result
 }
 
-export function translateMap(map, vector) {
+export function translateMap(map, arr) {
   // map is in the form of Map.entries() and is iterable in for..of
   // returns a new map
-  var { x=0, y=0, z=0 } = vector
   let result=new Map()
   for (let [pos, val] of map) {
     let posArray = pos.split(" ")
     let xv=Number(posArray[0])
     let yv=Number(posArray[1])
     let zv=Number(posArray[2])
-    let newPosArray = [ x*1+xv, y*1+yv, z*1+zv]
+    let newPosArray = [ arr[0]*1+xv, arr[1]*1+yv, arr[2]*1+zv]
     result.set(newPosArray.join(" "),val)
   }
   return result

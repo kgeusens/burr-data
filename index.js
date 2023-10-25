@@ -288,7 +288,7 @@ class BoundingBox {
 	constructor(point) {
 		for (let idx in point)
 		{
-			this.min[idx] = this.max[idx] = point[idx]
+			this.min[idx] = this.max[idx] = point[idx]*1
 		}
 	}
 }
@@ -895,7 +895,7 @@ export class VoxelInstance {
 	worldMap = {}
 	dimension = [0,0,0] // [x, y, z] is size of the boundingbox
 	offset = [0,0,0] // offset of the boundingBox
-	boundingBox
+	boundingBox = new BoundingBox()
 	rotation
 	hotspot = [0,0,0] // folows the transformations, including the offset
 	get x() { return Number(this.dimension[0]) }
@@ -924,10 +924,9 @@ export class VoxelInstance {
 		this.hotspot = rotatePoint(this.hotspot, rotation)
 		this.hotspot = translatePoint(this.hotspot, [trans[0] + offset[0], trans[1] + offset[1], trans[2] + offset[2]])
 		// calculate the boundingBox. Include offset
-		this.boundingBox = this.voxel.boundingBox
-		let bbMin = rotatePoint(this.boundingBox.min, rotation)
+		let bbMin = rotatePoint(this.voxel.boundingBox.min, rotation)
 		bbMin = translatePoint(bbMin, [trans[0] + offset[0], trans[1] + offset[1], trans[2] + offset[2]])
-		let bbMax = rotatePoint(this.boundingBox.max, rotation)
+		let bbMax = rotatePoint(this.voxel.boundingBox.max, rotation)
 		bbMax = translatePoint(bbMax, [trans[0] + offset[0], trans[1] + offset[1], trans[2] + offset[2]])
 		this.boundingBox.min[0] = Math.min(bbMin[0], bbMax[0])
 		this.boundingBox.min[1] = Math.min(bbMin[1], bbMax[1])
@@ -1180,6 +1179,7 @@ export class WorldMap {
 	get variEntries() {
 		return this._varimap.entries()
 	}
+	has(pos) { return (this._map.has(pos) || this._varimap.has(pos))}
 	getClone() {
 		let newMap = new WorldMap({map: this._map, varimap: this._varimap, copy:true})
 		return newMap

@@ -9,6 +9,7 @@ import { log } from 'console'
 class Assembler {
     _puzzle
     _problemIndex
+    _assemblies=null
     get puzzle() { return this._puzzle }
     get problem() { return this.puzzle.problems.problem[this._problemIndex]}
     get puzzleVoxels() { return this.puzzle.shapes.voxel}
@@ -75,6 +76,7 @@ class Assembler {
         console.log(selfSymmetries)
     }
     getDLXmatrix() {
+        this._assemblies = null
         let r = new DATA.VoxelInstance({ voxel:this.resultVoxel } )
         let rbb = r.boundingBox
         let matrix = []
@@ -88,6 +90,7 @@ class Assembler {
                         for (let z = rbb.min[2] - pbb.min[2]; z <= rbb.max[2] - pbb.max[2];z++) {
                             let offset = [x, y, z]
                             let wm = rotatedInstance.worldmap.translateToClone(offset)
+                            let debug = rotatedInstance.worldmap
                             let map = r.worldmap.getDLXmap(wm)
                             if (map) {
                                 map.data={id:this.problemShapes[psid].id, rotation:rotidx, hotspot:rotatedInstance.hotspot, offset:offset, instance: rotatedInstance}
@@ -104,6 +107,50 @@ class Assembler {
         }
         return matrix
     }
+    assemble() {
+        this._assemblies = DLX.findAll(this.getDLXmatrix())
+        return this._assemblies.length
+    }
+    getAssembly(idx) {
+        let rootNode = new Node()
+        rootNode.setFromAssembly(this._assemblies[idx])
+        return rootNode
+    }
+    checkAssembly() {
+        // count all voxels
+        for (let idx in this._assemblies) {
+            console.log("checking assembly", idx)
+            let rootNode = new Node()
+            rootNode.setFromAssembly(this._assemblies[idx])
+            let wm = rootNode.getWorldmap()
+            console.log(wm)
+            let resultwm = this.resultVoxel.worldmap
+            let count = 0
+            // check that worldmap positions map to the result
+            for ( let [pos,idx] of wm.filledEntries ) {
+                count++
+                if (!resultwm.has(pos)) console.log("ERROR in position", pos, idx)
+            }
+            // check for duplicates (expensive check) based on rotations and offsets
+            let voxelList=[]
+            for ( let i in rootNode.pieceList ) voxelList[rootNode.pieceList[i]] = i
+            let id = "id"
+            let idList = []
+            for ( let i in voxelList ) {
+                id += " " + i + " " + rootNode.rotationList[voxelList[i]] + " " + rootNode.offsetList[voxelList[i]].join(" ")
+                if (idList.includes(id)) console.log("ERROR duplicate assembly")
+                idList.push(id)
+            }
+        }
+    }
+    solve() {
+        for (let idx in this._assemblies) {
+            console.log("solving assembly", idx)
+            let rootNode = new Node()
+            rootNode.setFromAssembly(this._assemblies[idx])
+            solve(rootNode)
+        }
+    }
 }
 
 // I think "Node" can be the representation of a search node in the tree
@@ -118,6 +165,9 @@ class Node {
     id // (key) id = the concatenation of positionList, but normalized to the first element at [0,0,0]
     #parent=null
     #root=null
+    isSeparation = false
+    movingPieceList
+    moveDirection
     // Pass a single solution from the assembler.
     // Parse the information from the data property
     // instances are references to VoxelInstances created by the assembler. VoxelInstances are pre-translated over hotspot.
@@ -138,6 +188,8 @@ class Node {
             this.worldmapList = parentObject.worldmapList //
             for (let idx in parentObject.offsetList) this.offsetList[idx] = [...parentObject.offsetList[idx]]
             if (movingPieceList) {
+                this.movingPieceList = movingPieceList
+                this.moveDirection = translation
                 for (let idx in this.pieceList) {
                     if (movingPieceList.includes(this.pieceList[idx])) {
                         let offset = this.offsetList[idx]
@@ -206,16 +258,6 @@ pseudo code:
 
 for performance reasons, calculating mpl and the boundingBoxes can be done in 1 function
 */
-function prepare2(node) {
-    function getMovingPiecelist(idxList, translation) {
-        return wm.getMovingPiecelist(idxList, {x: translation[0], y: translation[1], z: translation[2]})
-    }
-    let moveslist = []
-    let wm = node.getWorldmap()
-    let direction = [0,0,1]
-    let pidx = 6
-    return getMovingPiecelist([pidx], direction)
-}
 
 function prepare(node) {
     function getMovingPiecelist(idxList, translation) {
@@ -225,12 +267,29 @@ function prepare(node) {
         let pl = wm.getMovingPiecelist(idxList, translation)
         return (pl.length == idxList.length)
     }
+    function getMaxMoves(mpl, dim=0, step) {
+        let maxmpl = 0
+        let minmpl = 30000
+        let maxrest = 0
+        let minrest = 30000
+        for (let idx in node.pieceList) {
+            let max = node.instances[idx].boundingBox.max[dim] + node.offsetList[idx][dim]
+            let min = node.instances[idx].boundingBox.min[dim] + node.offsetList[idx][dim]
+            if (idx in mpl) {
+                if (max>maxmpl) maxmpl = max
+                if (min<minmpl) minmpl = min
+            } 
+            else {
+                if (max>maxrest) maxrest = max
+                if (min<minrest) minrest = min
+            }
+        }
+        if (step == 1) return maxrest - minmpl
+        else return maxmpl - minrest
+    }
     let moveslist = []
     let wm = node.getWorldmap()
     let mplCache = [] // 0
-    // DEBUG START
-//    console.log("debug",wm.getMovingPiecelist([1], [1,0,0]))
-    // DEBUG END
     for (let pidx in node.pieceList) { // 1
         for (let dim of [0,1,2]) {
             for (let minstep of [1, -1]) {
@@ -240,17 +299,14 @@ function prepare(node) {
                 if (mpl.length == node.pieceList.length) continue // i
                 let newNode = new Node(node, mpl, dir)
                 if (mplCache.includes(newNode.id)) continue // i
-                console.log("init", dir, pidx*1, mpl)
                 mplCache.push(newNode.id)
                 moveslist.push(newNode)
                 // ii.
-                // test with dummy maxMoves
-                let maxMoves = 10
+                let maxMoves = getMaxMoves(mpl, dim, minstep)
                 let move = 2
                 while (move <= maxMoves) {
                     dir[dim]=minstep*move
                     if (canMove(mpl, dir)) {
-                        console.log("step", dir, pidx*1, mpl)
                         let newNode = new Node(node, mpl, dir)
                         if (mplCache.includes(newNode.id)) break // i
                         mplCache.push(newNode.id)
@@ -259,26 +315,91 @@ function prepare(node) {
                     else break
                     move++
                 }
+                // if move > maxMoves then this is a separation
+                if (move > maxMoves) {
+                    console.log("DEBUG")
+                    newNode.isSeparation = true
+                    return [newNode]
+                }
             }
         }
     }   
     return moveslist
 }
 
+function solve(startNode) {
+    let curListFront = 0;
+    let newListFront = 1;
+    let oldFront = 0;
+    let curFront = 1;
+    let newFront = 2;
+    let closed = [[], [], []]
+    let openlist = [[], []]
+    let closedCache = [[], [], []]
+
+    closed[curFront].push(startNode)
+    closedCache[curFront].push(startNode.id)
+    openlist[curListFront].push(startNode)
+
+    let node
+    let level = 1
+    while (!openlist[curListFront].length == 0) {
+        node = openlist[curListFront].pop()
+        let st
+        let movesList = prepare(node)
+        while (st = movesList.pop()) {
+            if (closedCache[oldFront].includes(st.id) || closedCache[curFront].includes(st.id) || closedCache[newFront].includes(st.id)) {
+                continue
+            }
+            // never seen this node before, add it to new layer
+            closed[newFront].push(st)
+            closedCache[newFront].push(st.id)
+            // check for separation
+            if (!st.isSeparation) {
+                // it is not a separation, so add it for later analysis and continue to next node
+                openlist[newListFront].push(st)
+                continue
+            }
+            // this is a separation, continue to analyse the two subproblems
+            // not implemented yet
+            console.log ("SEPARATION FOUND")
+            return st
+        }
+        // if we get here, we have exhausted this layer of the search tree
+        // move to the next layer
+        if (openlist[curListFront].length == 0) {
+            console.log("Finished Level", level++)
+            curListFront = 1 - curListFront;
+            newListFront = 1 - newListFront;
+            closed[oldFront]=[]
+            closedCache[oldFront]=[]
+            oldFront = curFront;
+            curFront = newFront;
+            newFront = (newFront + 1) % 3;
+        }
+    }
+    console.log("DEAD END")
+    // the entire tree has been processed, no separation found
+    return null
+}
 
 // Read a plain text xml file and load it (in the xmpuzzle format)
 const xmpuzzleFile = readFileSync("misusedKey.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 
 let a = new Assembler(theXMPuzzle)
-let solutions = DLX.findAll(a.getDLXmatrix())
-console.log(solutions.length)
-let rootNode = new Node()
-rootNode.setFromAssembly(solutions[0])
-//console.log(solutions[0])
-//for (let i in solutions[0]) { console.log(solutions[0][i].data.instance.worldmap.translate(solutions[0][i].data.offset))}
-let node = new Node(rootNode, [1], [1,2,3])
+a.assemble()
+a.checkAssembly()
+a.solve()
+//let solutions = DLX.findAll(a.getDLXmatrix())
+//console.log(solutions.length)
 //console.profile()
-console.log(prepare(rootNode).length)
+//let counter=1
+//for (let solution of solutions) {
+//    console.log("Solving solution", counter++, "of", solutions.length)
+//    let rootNode = new Node()
+//    rootNode.setFromAssembly(solutions[0])
+//    solve(rootNode)
+//}
 //console.profileEnd()
 

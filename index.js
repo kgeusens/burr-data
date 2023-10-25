@@ -1208,7 +1208,7 @@ export class WorldMap {
 		return this
 	}
 	canPlace(worldmap) {
-		// no need to check varimap
+		// no need to check varimapf
 		for (let pos of worldmap.positions) {
 			if (this._map.has(pos)) {
 				return false
@@ -1270,7 +1270,7 @@ export class WorldMap {
 		if (!Array.isArray(pieceList)) pieceList = [ pieceList ]
 		let pieceMap = this.filter(pieceList).translate(translation)
 		let conflictList = []
-		for ([pos, val] of pieceMap.filledEntries) {
+		for (let [pos, val] of pieceMap.filledEntries) {
 			if (this._map.has(pos)) {
 				// something is there
 				if (pieceList.includes(this._map.get(pos))) {
@@ -1314,6 +1314,9 @@ export class WorldMap {
 			conflicts=this.checkMoveConflicts(theList, translation)
 		}
 		return theList.sort()		
+	}
+	tempFunc(piece, translation) {
+
 	}
 }
 

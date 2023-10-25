@@ -111,12 +111,12 @@ class Node {
     rotationList = [] // static throughout the searchtree
     hotspotList = [] // static throughout the searchtree
     offsetList = [] // changes throughout the searchtree.
-//    #positionList = [] // calculated based on hostpost and offset
-    instances = [] // VoxelInxstances of the rotated voxels (boundingBox starting at [0,0,0]), static
+//    positionList = [] // calculated based on hostpost and offset
+    instances = [] // static VoxelInxstances of the rotated voxels (boundingBox starting at [0,0,0])
     worldmapList = [] // static worldmaps of the instances, remapped to its index in this list. eg worldmapList[2] is remapped to 2
-    id
-    parent=null
-    root=null
+    id // (key) id = the concatenation of positionList, but normalized to the first element at [0,0,0]
+    #parent=null
+    #root=null
     // Pass a single solution from the assembler.
     // Parse the information from the data property
     // instances are references to VoxelInstances created by the assembler. VoxelInstances are pre-translated over hotspot.
@@ -128,14 +128,14 @@ class Node {
     // parent : undefined by default, but needed when this is used as a node in the solution tree. Points back to the previous step.
     constructor(parentObject, movingPieceList, translation = [0,0,0]) {
         if (parentObject) {
-            this.root = parentObject.root
-            this.parent = parentObject
+            this.#root = parentObject.root
+            this.#parent = parentObject
             this.pieceList = parentObject.pieceList
             this.rotationList = parentObject.rotationList
             this.hotspotList = parentObject.hotspotList
             this.instances = parentObject.instances
             this.worldmapList = parentObject.worldmapList //
-            this.offsetList = [...parentObject.offsetList]
+            for (let idx in parentObject.offsetList) this.offsetList[idx] = [...parentObject.offsetList[idx]]
             if (movingPieceList) {
                 for (let idx in this.pieceList) {
                     if (movingPieceList.includes(this.pieceList[idx])) {
@@ -144,15 +144,16 @@ class Node {
                     }
                 }
             }
-            // ID = the concatenation of the positionList, but normalized to the first element at [0,0,0]
             let pl = this.positionList
             let firstPos = pl[0]
             this.id = pl.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).flat().join(" ")
         }
         else {
-            this.root = this
+            this.#root = this
         }
     }
+    get root() { return this.#root}
+    get parent() { return this.#parent}
     get positionList() { 
         return this.hotspotList.map((v, idx) => [v[0] + this.offsetList[idx][0],v[1] + this.offsetList[idx][1],v[2] + this.offsetList[idx][2]])
     }
@@ -187,7 +188,7 @@ unless if it leads to a separation: in that case only the separation node is ret
 pseudo code:
 0. moveslist = [] (empty list of nodes)
 1. loop over the pieces (p) in the node
-    A. loop over the 4 directions (d)
+    A. loop over the 6 directions (d)
         0. mplcache = [] (empty)
         a. calculate mpl (the moving piece list) for piece p in direction d
             i.  if mpl is "everything" then skip and go to next direction
@@ -203,8 +204,43 @@ pseudo code:
 2. return moveslist
 
 for performance reasons, calculating mpl and the boundingBoxes can be done in 1 function
-
 */
+function prepare2(node) {
+    function getMovingPiecelist(idxList, translation) {
+        return wm.getMovingPiecelist(idxList, {x: translation[0], y: translation[1], z: translation[2]})
+    }
+    let moveslist = []
+    let wm = node.getWorldmap()
+    let direction = [0,0,1]
+    let pidx = 6
+    return getMovingPiecelist([pidx], direction)
+}
+
+function prepare(node) {
+    function getMovingPiecelist(idxList, translation) {
+        return wm.getMovingPiecelist(idxList, {x: translation[0], y: translation[1], z: translation[2]})
+    }
+    let moveslist = []
+    let wm = node.getWorldmap()
+    let allDirections = [[1,0,0], [-1,0,0], [0, 1,0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]
+    let mplCache = [] // 0
+    for (let pidx in node.pieceList) { // 1
+        for (let dim of [0,1,2]) {
+            for (let minstep of [1, -1]) {
+                let dir = [0,0,0]
+                dir[dim] = minstep
+                let mpl = getMovingPiecelist(pidx*1, dir) // a
+                if (mpl.length == node.pieceList.length) continue // i
+                let newNode = new Node(node, mpl, dir)
+                if (mplCache.includes(newNode.id)) continue // i
+                mplCache.push(newNode.id)
+                moveslist.push(newNode)
+                // ii.
+            }
+        }
+    }   
+    return moveslist
+}
 
 
 // Read a plain text xml file and load it (in the xmpuzzle format)
@@ -212,12 +248,12 @@ const xmpuzzleFile = readFileSync("misusedKey.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 
 let a = new Assembler(theXMPuzzle)
-console.profile()
 let solutions = DLX.findAll(a.getDLXmatrix())
-console.profileEnd()
 console.log(solutions.length)
 let rootNode = new Node()
 rootNode.setFromAssembly(solutions[0])
 let node = new Node(rootNode, [1], [1,2,3])
-console.log(node.getWorldmap())
+console.profile()
+console.log(prepare(rootNode).length)
+console.profileEnd()
 

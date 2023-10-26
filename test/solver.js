@@ -93,7 +93,7 @@ class Assembler {
                             let debug = rotatedInstance.worldmap
                             let map = r.worldmap.getDLXmap(wm)
                             if (map) {
-                                map.data={id:this.problemShapes[psid].id, rotation:rotidx, hotspot:rotatedInstance.hotspot, offset:offset, instance: rotatedInstance}
+                                map.data={id:Number(this.problemShapes[psid].id), rotation:rotidx, hotspot:rotatedInstance.hotspot, offset:offset, instance: rotatedInstance}
                                 // we need to add secondary constraints for the pieces (based on psid)
                                 let mlen=map.secondaryRow.length
                                 map.secondaryRow[mlen+this.problemShapes.length-1]=0
@@ -151,6 +151,24 @@ class Assembler {
             solve(rootNode)
         }
     }
+    debug(idx=0) {
+        let rootNode = new Node()
+        rootNode.setFromAssembly(this._assemblies[idx])
+        let node1 = new Node(rootNode, [0], [0, -1, 0])
+        let node2 = new Node(node1, [0], [0, -1, 0])
+        let node = rootNode
+        console.log("rootnode")
+        console.log("  offsetList", node.offsetList)
+        console.log("  positionList", node.positionList)
+        console.log("node1")
+        node=node1
+        console.log("  offsetList", node.offsetList)
+        console.log("  positionList", node.positionList)
+        console.log("node2")
+        node=node2
+        console.log("  offsetList", node.offsetList)
+        console.log("  positionList", node.positionList)
+    }
 }
 
 // I think "Node" can be the representation of a search node in the tree
@@ -188,10 +206,11 @@ class Node {
             this.worldmapList = parentObject.worldmapList //
             for (let idx in parentObject.offsetList) this.offsetList[idx] = [...parentObject.offsetList[idx]]
             if (movingPieceList) {
-                this.movingPieceList = movingPieceList
-                this.moveDirection = translation
+                this.movingPieceList = [...movingPieceList]
+                this.moveDirection = [...translation]
                 for (let idx in this.pieceList) {
-                    if (movingPieceList.includes(this.pieceList[idx])) {
+                    idx = Number(idx)
+                    if (movingPieceList.includes(idx)) {
                         let offset = this.offsetList[idx]
                         for (let i in offset) offset[i] += translation[i]
                     }
@@ -389,8 +408,8 @@ const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 
 let a = new Assembler(theXMPuzzle)
 a.assemble()
-a.checkAssembly()
-a.solve()
+//a.checkAssembly()
+a.debug()
 //let solutions = DLX.findAll(a.getDLXmatrix())
 //console.log(solutions.length)
 //console.profile()

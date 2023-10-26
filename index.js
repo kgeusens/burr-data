@@ -1035,7 +1035,7 @@ export class Comment {
 export class Shape {
 	"@attributes" = {} //	id, count, min, max, group 
 	text
-	get id() { return this["@attributes"].id }
+	get id() { return Number(this["@attributes"].id) }
 	set id(idx) { this["@attributes"].id = idx }
 	get count() { 
 		let c=this["@attributes"].count 

@@ -119,11 +119,11 @@ class Assembler {
     checkAssembly() {
         // count all voxels
         for (let idx in this._assemblies) {
-            console.log("checking assembly", idx)
+//            console.log("checking assembly", idx)
             let rootNode = new Node()
             rootNode.setFromAssembly(this._assemblies[idx])
             let wm = rootNode.getWorldmap()
-            console.log(wm)
+//            console.log(wm)
             let resultwm = this.resultVoxel.worldmap
             let count = 0
             // check that worldmap positions map to the result
@@ -145,7 +145,7 @@ class Assembler {
     }
     solve() {
         for (let idx in this._assemblies) {
-            console.log("solving assembly", idx)
+//            console.log("solving assembly", idx)
             let rootNode = new Node()
             rootNode.setFromAssembly(this._assemblies[idx])
             solve(rootNode)
@@ -336,7 +336,6 @@ function prepare(node) {
                 }
                 // if move > maxMoves then this is a separation
                 if (move > maxMoves) {
-                    console.log("DEBUG")
                     newNode.isSeparation = true
                     return [newNode]
                 }
@@ -381,13 +380,13 @@ function solve(startNode) {
             }
             // this is a separation, continue to analyse the two subproblems
             // not implemented yet
-            console.log ("SEPARATION FOUND")
+//            console.log ("SEPARATION FOUND")
             return st
         }
         // if we get here, we have exhausted this layer of the search tree
         // move to the next layer
         if (openlist[curListFront].length == 0) {
-            console.log("Finished Level", level++)
+//            console.log("Finished Level", level++)
             curListFront = 1 - curListFront;
             newListFront = 1 - newListFront;
             closed[oldFront]=[]
@@ -397,7 +396,7 @@ function solve(startNode) {
             newFront = (newFront + 1) % 3;
         }
     }
-    console.log("DEAD END")
+//    console.log("DEAD END")
     // the entire tree has been processed, no separation found
     return null
 }
@@ -408,18 +407,8 @@ const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 
 let a = new Assembler(theXMPuzzle)
 a.assemble()
+console.profile()
 //a.checkAssembly()
 //a.debug()
 a.solve()
-//let solutions = DLX.findAll(a.getDLXmatrix())
-//console.log(solutions.length)
-//console.profile()
-//let counter=1
-//for (let solution of solutions) {
-//    console.log("Solving solution", counter++, "of", solutions.length)
-//    let rootNode = new Node()
-//    rootNode.setFromAssembly(solutions[0])
-//    solve(rootNode)
-//}
-//console.profileEnd()
-
+console.profileEnd()

@@ -1312,29 +1312,26 @@ export class NewWorldMap {
 		let filledHashSequence=[]
 		let count=0
 		for (let hash in this._map) {
-			filledHashSequence[hash]=count++
+			filledHashSequence.push(hash)
+			count++
 		}
 		constraint.primaryRow[count - 1] = 0
 		let variHashSequence=[]
 		count=0
 		for (let hash in this._varimap) {
-			variHashSequence[hash]=count++
+			variHashSequence.push(hash)
+			count++
 		}
 		constraint.secondaryRow[count - 1] = 0
 		// hack to make sure the sparse arrays have the correct "length"
 		// Loop over the indices of smallworldmap, and check if it is present in this._map or this._varimap
 		// return undefined if it is present in neither
 		for (let hash in smallWorldmap._map) {
-			switch(this.getStateHash(hash)) {
-				case 1:
-					constraint.primaryRow[filledHashSequence[hash]] = 1
-					break
-				case 2:
-					constraint.secondaryRow[variHashSequence[hash]] = 1
-					break
-				default:
-					return undefined
-			}
+			let fullidx = filledHashSequence.indexOf(hash)
+			let variidx = variHashSequence.indexOf(hash)
+			if ((fullidx == -1) && (variidx == -1 )) return undefined
+			if ( fullidx != -1) constraint.primaryRow[fullidx] = 1
+			else constraint.secondaryRow[variidx] = 1
 		}
 		return constraint
 	}

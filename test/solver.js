@@ -82,6 +82,7 @@ class Assembler {
         let rbb = r.boundingBox
         let matrix = []
         for (let psid in this.problemShapes) { // problemshapes
+            psid = Number(psid)
             for (let rotidx = 0; rotidx<24;rotidx++) { // 24 rotations each
 //                console.log("psid", psid, "rot", rotidx)
                 let rotatedInstance = new DATA.VoxelInstance({ voxel: this.puzzleVoxels[this.problemShapes[psid].id], rotation: rotidx})
@@ -412,9 +413,10 @@ const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 let a = new Assembler(theXMPuzzle)
 //a.assemble()
 console.profile()
-a.getDLXmatrix()
-//let numAssemblies = a.assemble()
+//a.getDLXmatrix()
+let numAssemblies = a.assemble()
 console.profileEnd()
-//a.checkAssembly()
+console.log(numAssemblies)
+a.checkAssembly()
 //a.debug()
 //a.solve()

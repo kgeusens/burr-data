@@ -294,14 +294,14 @@ export class BoundingBox {
 }
 
 export class Voxel {
-	private = { worldmap: new NewWorldMap() }
+	private = { worldmap: new NewWorldMap() } // worldmap is used to track state at positions
 	"@attributes"={x:1, y:1, z:1, type:0} // hx, hy, hz, name, weight
 	text="_"
 	constructor(flatObject = {}) {
 		if (!flatObject["@attributes"]) flatObject["@attributes"]={}
 		var { "@attributes" : {x=1, y=1, z=1, type=0, ...attrs}, text, ...props } = flatObject
 		// step 1: process explicit destructured attributes
-		this.x=x; this.y=y; this.z=z;
+		this.x=Number(x); this.y=Number(y); this.z=Number(z);
 		this.type=type
 		// step 2: process generic other attributes
 		for (let attr in attrs) {
@@ -314,8 +314,9 @@ export class Voxel {
 //		for (let prop in props) {
 //			this[prop] = props[prop]
 //		}
-		this.setSize(x, y, z)
-		this.stateString = text
+		this.setSize(this.x, this.y, this.z)
+		this.stateString = text // initializes the worldmap
+		true
 	}
 	get boundingBox() { return this.private.boundingBox	}
 	get worldmap() { return this.private.worldmap}
@@ -342,7 +343,6 @@ export class Voxel {
 		this["@attributes"].x = x
 		this["@attributes"].y = y
 		this["@attributes"].z = z
-		this.text=this.stateString
 	}
 	get stateString() {
 		let ss = ""
@@ -396,7 +396,7 @@ export class Voxel {
 	setVoxelState(x,y,z,s) {
 		this.private.worldmap.setStatePoint([x,y,z],s)
 	}
-	clone(orig) {
+	copyFrom(orig) { // used to be called clone(orig) but this does not generate a clone, so I renamed for consistency
 		var { "@attributes" : { ...attrs}, ...props } = orig
 		for (let attr in attrs) {
 			this["@attributes"][attr] = attrs[attr]
@@ -404,8 +404,9 @@ export class Voxel {
 		for (let prop in props) {
 			this[prop] = props[prop]
 		}
-		this.setSize(this.x, this.y, this.z)
-		this.stateString = this.text
+		this.private.worldmap = orig.private.worldmap.clone()
+//		this.setSize(this.x, this.y, this.z) // already copied from original and no side effects needed
+//		this.stateString = this.text // worldmap already cloned from original, so side effect (worldmap update) not needed
 	}
 	toOBJ(name = "shape") {
 		let group = this.name?this.name:name
@@ -854,49 +855,51 @@ export class VoxelInstance {
 	// it introduces boundingBox and hotspot
 	// it overrides the dimensions of the original voxel
 	// it rotates and translates the original voxel to place its boundingBox in the beginning of the first quadrant
-	voxel = {}
-	worldMap = {}
-	dimension = [0,0,0] // [x, y, z] is size of the boundingbox
+	_voxel
+	_worldMap // transformed clone of the voxel worldmap (rotation + offset translation)
 	offset = [0,0,0] // offset of the boundingBox
-	boundingBox = new BoundingBox()
-	rotation
+	rotation = 0
 	hotspot = [0,0,0] // folows the transformations, including the offset
 	get x() { return Number(this.dimension[0]) }
 	get y() { return Number(this.dimension[1]) }
 	get z() { return Number(this.dimension[2]) }
-	get worldmap() { return this.worldMap }
+	get worldmap() { return this._worldMap }
+	get dimension() { return this.worldmap.dimension }
+	get boundingBox() { return this.worldmap.boundingBox }
 	constructor(flatObject) {
 		// voxel is mandatory, rotation is optional, offset is optional
-		let {voxel, rotation = 0, offset = [0,0,0]} = flatObject
-		this.voxel = voxel
-		this.rotation = rotation
-		this.offset = offset
-		// first transform the corner opposite the 0,0,0 corner to find the final size
-  		// and the required shifts
-		let d = rotatePoint(voxel.boundingBox.max, rotation)
-		// calculate the amount the rotated coordinates must be translated
-		let trans = []
-		for (let i in d) trans[i] = d[i]<0?-d[i]:0
-		// calculate new size
-		for (let i in d) this.dimension[i] = Math.abs(d[i]) + 1
-		// update the worldmap. Include offset
-		this.worldMap = voxel.worldmap.getClone()
-		this.worldMap.rotate(rotation)
-		this.worldMap.translate([trans[0] + offset[0], trans[1] + offset[1], trans[2] + offset[2]])
-		// update the hotspot. Include offset
-		this.hotspot = rotatePoint(this.hotspot, rotation)
-		this.hotspot = translatePoint(this.hotspot, [trans[0] + offset[0], trans[1] + offset[1], trans[2] + offset[2]])
-		// calculate the boundingBox. Include offset
-		let bbMin = rotatePoint(this.voxel.boundingBox.min, rotation)
-		bbMin = translatePoint(bbMin, [trans[0] + offset[0], trans[1] + offset[1], trans[2] + offset[2]])
-		let bbMax = rotatePoint(this.voxel.boundingBox.max, rotation)
-		bbMax = translatePoint(bbMax, [trans[0] + offset[0], trans[1] + offset[1], trans[2] + offset[2]])
-		this.boundingBox.min[0] = Math.min(bbMin[0], bbMax[0])
-		this.boundingBox.min[1] = Math.min(bbMin[1], bbMax[1])
-		this.boundingBox.min[2] = Math.min(bbMin[2], bbMax[2])
-		this.boundingBox.max[0] = Math.max(bbMin[0], bbMax[0])
-		this.boundingBox.max[1] = Math.max(bbMin[1], bbMax[1])
-		this.boundingBox.max[2] = Math.max(bbMin[2], bbMax[2])
+		if (flatObject) {
+			let {voxel, rotation = 0, offset = [0,0,0]} = flatObject
+			this._voxel = voxel
+			this.rotation = rotation
+			this.offset = offset
+			// clone and rotate the voxel worldmap
+			this._worldMap = voxel.worldmap.clone()
+			this._worldMap.rotate(rotation)
+			// move the worldmap so that the boundingBox starts at [0,0,0]
+			let bb = this._worldMap.boundingBox
+			let trans = [-1*bb.min[0], -1*bb.min[1], -1*bb.min[2]]
+			this._worldMap.translate([trans[0] + offset[0], trans[1] + offset[1], trans[2] + offset[2]])
+			// update the hotspot. Include offset
+			this.hotspot = rotatePoint(this.hotspot, rotation)
+			// KG : do I need to translate the hotspot over offset??
+			// currently offset is never used, we only rotate, so the answer will need to wait
+			// We probably do, since this property is used to track the position of the origin of the original voxel and that changes whenever we change the worldmap.
+			this.hotspot = translatePoint(this.hotspot, [trans[0] + offset[0], trans[1] + offset[1], trans[2] + offset[2]])
+		}
+	}
+	clone() {
+		let c = new VoxelInstance()
+		c._voxel = this._voxel
+		c._worldMap = this._worldMap.clone()
+		c._offset = [...this.offset]
+		c.rotation = this.rotation
+		c.hotspot = [...this.hotspot]
+		return c
+	}
+	translate(translation) {
+		this._worldMap.translate(translation)
+		this.hotspot = translatePoint(this.hotspot, translation)
 	}
 }
 
@@ -1115,10 +1118,12 @@ export class Problem {
 export class NewWorldMap {
 	_map // sparse array
 	_varimap // sparse array
-    static worldMax=200
     static worldOrigin=100
+	// coordinates range is [-worldOrigin ..0.. +worldOrigin]
+    static worldMax=2*NewWorldMap.worldOrigin + 1
     static worldOriginIndex = NewWorldMap.worldOrigin*(NewWorldMap.worldMax*NewWorldMap.worldMax + NewWorldMap.worldMax + 1)
     static worldSteps = [1, NewWorldMap.worldMax, NewWorldMap.worldMax*NewWorldMap.worldMax]
+    static worldSize = NewWorldMap.worldMax*NewWorldMap.worldMax*NewWorldMap.worldMax
     static hashToPoint(hash) {
         let h = hash
         let x = h % NewWorldMap.worldMax; h = (h - x)/NewWorldMap.worldMax
@@ -1148,18 +1153,22 @@ export class NewWorldMap {
         return count
     }
     get boundingBox() {
-        let bb = new DATA.BoundingBox()
+        let bb = new BoundingBox()
         bb.max = [-1*NewWorldMap.worldOrigin,-1*NewWorldMap.worldOrigin,-1*NewWorldMap.worldOrigin]
         bb.min = [NewWorldMap.worldOrigin,NewWorldMap.worldOrigin,NewWorldMap.worldOrigin]
-        this._map.forEach( (val, idx) => {
+		for (let idx in this._map) {
             let p = NewWorldMap.hashToPoint(idx)
             for (let dim of [0,1,2]) {
                 if (p[dim] < bb.min[dim]) bb.min[dim] = p[dim]
                 if (p[dim] > bb.max[dim]) bb.max[dim] = p[dim]
             }
-        } )
+		}
         return bb
     }
+	get dimension() {
+		let bb = this.boundingBox
+		return [bb.max[0] - bb.min[0],bb.max[1] - bb.min[1],bb.max[2] - bb.min[2]]
+	}
     setHash(idx,val) { this._map[idx] = val }
     setPoint(p,val) { this.setHash(NewWorldMap.pointToHash(p),val) }
     getHash(idx) { return this._map[idx] }
@@ -1172,8 +1181,8 @@ export class NewWorldMap {
 	getStatePoint(p) { return this.getStateHash(NewWorldMap.pointToHash(p)) }
 	setStateHash(idx, s) {
 		if (s==0) { delete this._map[idx];delete this._varimap[idx] }
-		if (s==1) { this._map[idx]=0;delete this._varimap[idx] }
-		if (s==2) { delete this._map[idx];this._varimap[idx]=0 }
+		if (s==1) { this._map[idx]=1;delete this._varimap[idx] }
+		if (s==2) { delete this._map[idx];this._varimap[idx]=1 }
 	}
 	setStatePoint(p,s) { this.setStateHash(NewWorldMap.pointToHash(p),s)}
 	clearHash(idx) { delete this._map[idx];delete this._varimap[idx]}
@@ -1212,10 +1221,22 @@ export class NewWorldMap {
         this._map = newArray
         return this
     }
+    translate(translation) {
+		// update in place
+        let newArray = []
+        for (let idx in this._map) {
+            let idxOffset = NewWorldMap.worldSteps[0]*translation[0] + NewWorldMap.worldSteps[1]*translation[1] + NewWorldMap.worldSteps[2]*translation[2]
+            let targetIdx = idx*1 + idxOffset
+            newArray[targetIdx] = this._map[idx]
+        }
+        this._map = newArray
+        return this
+    }
 	rotate(rotationIdx) {
 		let newArray = []
 		for (let idx in this._map) {
-			let pos=NewWorldMap.hashToPoint(this._map[idx])
+//			idx = Number(idx)
+			let pos=NewWorldMap.hashToPoint(idx)
 			newArray[NewWorldMap.pointToHash(rotatePoint(pos, rotationIdx))] = this._map[idx]
 		}
 		this._map = newArray
@@ -1278,6 +1299,45 @@ export class NewWorldMap {
     clone() {
         return new NewWorldMap(this)
     }
+	getDLXmap(smallWorldmap) {
+		// This is specific for the Dancing Link algorithm (algoritm X) of Donald A. Knuth 
+		// See https://www.npmjs.com/package/dancing-links
+		// This transforms smallWorldmap into a constraint row in the matrix.
+		// return undefined if there is at least one voxel that covers a hole (should not happen)
+		// "This" worldmap is the reference (header row) to which the row should map.
+		// Since worldmap has been revamped into an "absolute" world of indices, there is no longer a need to
+		// use the intermediate remapping array. Just use the indices of worldmap for use in the constraints
+		let constraint = {data:{} , primaryRow : [], secondaryRow : []}
+		// setup a lookup array that maps the pixel hashes to their position in the dense array
+		let filledHashSequence=[]
+		let count=0
+		for (let hash in this._map) {
+			filledHashSequence[hash]=count++
+		}
+		constraint.primaryRow[count - 1] = 0
+		let variHashSequence=[]
+		count=0
+		for (let hash in this._varimap) {
+			variHashSequence[hash]=count++
+		}
+		constraint.secondaryRow[count - 1] = 0
+		// hack to make sure the sparse arrays have the correct "length"
+		// Loop over the indices of smallworldmap, and check if it is present in this._map or this._varimap
+		// return undefined if it is present in neither
+		for (let hash in smallWorldmap._map) {
+			switch(this.getStateHash(hash)) {
+				case 1:
+					constraint.primaryRow[filledHashSequence[hash]] = 1
+					break
+				case 2:
+					constraint.secondaryRow[variHashSequence[hash]] = 1
+					break
+				default:
+					return undefined
+			}
+		}
+		return constraint
+	}
 }
 
 export class OldWorldMap {
@@ -1288,35 +1348,6 @@ export class OldWorldMap {
 	// empty voxels are NOT represented in this data structure
 	// _arr is the sequential array of filled voxels (value is '1 2 3')
 	// _variarr is the sequential array of variable voxels
-	getDLXmap(smallWorldmap) {
-		// This is specific for the Dancing Link algorithm (algoritm X) of Donald A. Knuth 
-		// See https://www.npmjs.com/package/dancing-links
-		// This transforms smallWorldmap into a constraint row in the matrix.
-		// return undefined if there is at least one voxel that covers a hole (should not happen)
-		// "This" worldmap is the reference (header row) to which the row should map.
-		let constraint = {data:{} , primaryRow : [], secondaryRow : []}
-		// hack to make sure the sparse arrays have the correct "length"
-		constraint.primaryRow[this._map.size - 1] = 0
-		constraint.secondaryRow[this._varimap.size - 1] = 0
-		for (let pos of smallWorldmap.positionList) {
-			let fullidx = [...this._map.keys()].indexOf(pos)
-			let variidx = [...this._varimap.keys()].indexOf(pos)
-			if ((fullidx == -1) && (variidx == -1 )) return undefined
-			if ( fullidx != -1) constraint.primaryRow[fullidx] = 1
-			else constraint.secondaryRow[variidx] = 1
-		}
-		return constraint
-	}
-	rotate(idx) {
-		// in place rotation
-		this._map = rotateMap(this.filledEntries, idx)
-		this._varimap = rotateMap(this.variEntries, idx)
-		return this
-	}
-	rotateToClone(idx) {
-		let clone = new WorldMap( { map: rotateMap(this.filledEntries, idx), varimap: rotateMap(this.variEntries, idx) } )
-		return clone
-	}
 }
 
 export class Puzzle {

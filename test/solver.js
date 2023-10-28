@@ -77,21 +77,23 @@ class Assembler {
     }
     getDLXmatrix() {
         this._assemblies = null
-        let r = new DATA.VoxelInstance({ voxel:this.resultVoxel } )
+        let r = new DATA.VoxelInstance(
+            { voxel:this.resultVoxel } )
         let rbb = r.boundingBox
         let matrix = []
         for (let psid in this.problemShapes) { // problemshapes
-            psid = Number(psid)
             for (let rotidx = 0; rotidx<24;rotidx++) { // 24 rotations each
+//                console.log("psid", psid, "rot", rotidx)
                 let rotatedInstance = new DATA.VoxelInstance({ voxel: this.puzzleVoxels[this.problemShapes[psid].id], rotation: rotidx})
                 let pbb = rotatedInstance.boundingBox
                 for (let x = rbb.min[0] - pbb.min[0]; x <= rbb.max[0] - pbb.max[0];x++) {
                     for (let y = rbb.min[1] - pbb.min[1]; y <= rbb.max[1] - pbb.max[1];y++) {
                         for (let z = rbb.min[2] - pbb.min[2]; z <= rbb.max[2] - pbb.max[2];z++) {
                             let offset = [x, y, z]
-                            let wm = rotatedInstance.worldmap.translateToClone(offset)
-                            let debug = rotatedInstance.worldmap
+//                            console.log("offset", offset)
+                            let wm = rotatedInstance.worldmap.clone().translate(offset)
                             let map = r.worldmap.getDLXmap(wm)
+//                            let map = null
                             if (map) {
                                 map.data={id:Number(this.problemShapes[psid].id), rotation:rotidx, hotspot:rotatedInstance.hotspot, offset:offset, instance: rotatedInstance}
                                 // we need to add secondary constraints for the pieces (based on psid)
@@ -244,6 +246,8 @@ class Node {
         this.hotspotList = assembly.map(v => v.data.hotspot)
         this.offsetList = assembly.map(v => [v.data.offset[0], v.data.offset[1], v.data.offset[2]])
         this.instances = assembly.map(v => v.data.instance)
+        // KG : check if we need to clone.
+        // I think not since these instances are private to the assembler so we can safely remap
         this.worldmapList = this.instances.map((v,idx) => v.worldmap.remap(idx))
         // ID = the concatenation of the positionList, but normalized to the first element at [0,0,0]
         let firstPos = this.positionList[0]
@@ -406,9 +410,11 @@ const xmpuzzleFile = readFileSync("misusedKey.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 
 let a = new Assembler(theXMPuzzle)
-a.assemble()
+//a.assemble()
 console.profile()
+a.getDLXmatrix()
+//let numAssemblies = a.assemble()
+console.profileEnd()
 //a.checkAssembly()
 //a.debug()
-a.solve()
-console.profileEnd()
+//a.solve()

@@ -282,7 +282,7 @@ export class Solution {
 	}
 }
 
-class BoundingBox {
+export class BoundingBox {
 	min= [0,0,0]
 	max= [0,0,0]
 	constructor(point) {
@@ -294,7 +294,7 @@ class BoundingBox {
 }
 
 export class Voxel {
-	private = { stateMap: {}, boundingBox: new BoundingBox, worldmap: new WorldMap() }
+	private = { worldmap: new NewWorldMap() }
 	"@attributes"={x:1, y:1, z:1, type:0} // hx, hy, hz, name, weight
 	text="_"
 	constructor(flatObject = {}) {
@@ -316,7 +316,6 @@ export class Voxel {
 //		}
 		this.setSize(x, y, z)
 		this.stateString = text
-		this.update()
 	}
 	get boundingBox() { return this.private.boundingBox	}
 	get worldmap() { return this.private.worldmap}
@@ -345,8 +344,6 @@ export class Voxel {
 		this["@attributes"].z = z
 		this.text=this.stateString
 	}
-	get stateMap() { return this.private.stateMap }
-	set stateMap(m) { this.private.stateMap = m; this.text=this.stateString }
 	get stateString() {
 		let ss = ""
 		for (let z=0;z<=this.z-1;z++) {
@@ -369,23 +366,23 @@ export class Voxel {
 		return ss
 	}
 	set stateString(s) {
+		this.private.worldmap = new NewWorldMap()
 		let colorlessStateString = s.replace(/\d+/g,"")
 		if (colorlessStateString.length != this.x * this.y * this.z) {
 			throw new Error("Voxel state string has wrong size");
 		}
 		this.text=colorlessStateString
 		let tv=0
-		this.private.stateMap={}
 		for (let x=0;x<=this.x-1;x++) {
 			for (let y=0;y<=this.y-1;y++) {
 				for (let z=0;z<=this.z-1;z++) {
 					tv=colorlessStateString[x + y*this.x + z*this.x*this.y]
 					switch(tv) {
 						case "+":
-							this.private.stateMap[[x, y, z].join(" ")]={state: 2}
+							this.private.worldmap.setStatePoint([x, y, z],2)
 							break;
 						case "#":
-							this.private.stateMap[[x, y, z].join(" ")]={state: 1}
+							this.private.worldmap.setStatePoint([x, y, z],1)
 							break;
 						default:
 					}
@@ -393,46 +390,11 @@ export class Voxel {
 			}
 		}
 	}
-	getVoxelPosition(x, y, z) {
-		return this.private.stateMap[[x, y, z].join(" ")]
-	}
-	update() {
-		this.updateWorldMap()
-		this.updateBoundingBox() // depends on correct worldmap!
-	}
-	updateWorldMap(id=0) {
-		let theFilledMap=new Map()
-		let theVariMap=new Map()
-		for (let x=0;x<this.x;x++) {
-			for (let y=0;y<this.y;y++) { 
-				for (let z=0;z<this.z;z++) { 
-					if (this.getVoxelState(x, y, z) == 1) theFilledMap.set([x,y,z].join(" "), id)
-					else if (this.getVoxelState(x, y, z) == 2) theVariMap.set([x,y,z].join(" "), id)
-				}
-			}
-		}
-		this.private.worldmap = new WorldMap({map: theFilledMap, varimap: theVariMap})
-	}
-	updateBoundingBox() {
-		let wm = this.worldmap
-		let wmPoslist = wm.positionList
-		let bb = new BoundingBox(wmPoslist[0]?.split(" "))
-		for (let wmPosAsString of wmPoslist) {
-			let wmPosAsArray = wmPosAsString.split(" ")
-			for (let posIdx in wmPosAsArray) {
-				if (wmPosAsArray[posIdx] < bb.min[posIdx]) bb.min[posIdx] = Number(wmPosAsArray[posIdx])
-				if (wmPosAsArray[posIdx] > bb.max[posIdx]) bb.max[posIdx] = Number(wmPosAsArray[posIdx])
-			}
-		}
-		this.private.boundingBox = bb
-	}
-	getVoxelState(x,y,z) { 
-		let vp=this.getVoxelPosition(x,y,z); return vp? vp.state : 0 
+	getVoxelState(x,y,z) {
+		return this.private.worldmap.getStatePoint([x,y,z])
 	}
 	setVoxelState(x,y,z,s) {
-		let vp=this.getVoxelPosition(x, y, z)
-		if (!vp) this.private.stateMap[[x, y, z].join(" ")] = {state: s}
-		this.getVoxelPosition(x,y,z).state=s 
+		this.private.worldmap.setStatePoint([x,y,z],s)
 	}
 	clone(orig) {
 		var { "@attributes" : { ...attrs}, ...props } = orig
@@ -454,6 +416,7 @@ export class Voxel {
 		return OBJ
 	}
 	getVertexData(params = {}) {
+		// Can be used as VertexData for the MeshBuilder in Babylonjs
 		let {name, offset=0, bevel=0, base=0} = params
 		// positions and indices start at 0
 		let result = this.createMesh(offset, bevel, 0)
@@ -1149,7 +1112,175 @@ export class Problem {
 	}
 }
 
-export class WorldMap {
+export class NewWorldMap {
+	_map // sparse array
+	_varimap // sparse array
+    static worldMax=200
+    static worldOrigin=100
+    static worldOriginIndex = NewWorldMap.worldOrigin*(NewWorldMap.worldMax*NewWorldMap.worldMax + NewWorldMap.worldMax + 1)
+    static worldSteps = [1, NewWorldMap.worldMax, NewWorldMap.worldMax*NewWorldMap.worldMax]
+    static hashToPoint(hash) {
+        let h = hash
+        let x = h % NewWorldMap.worldMax; h = (h - x)/NewWorldMap.worldMax
+        let y = h % NewWorldMap.worldMax; h = (h - y)/NewWorldMap.worldMax
+        let z = h
+        return [x-NewWorldMap.worldOrigin,y-NewWorldMap.worldOrigin,z-NewWorldMap.worldOrigin]
+    }
+    static pointToHash(point) {return (NewWorldMap.worldOriginIndex + NewWorldMap.worldMax*(point[2]*NewWorldMap.worldMax + point[1]) + point[0]) }
+    
+	constructor(source = {}, copy=true ) {
+		let { _map = [], _varimap = [] } = source
+		if (copy) {
+			this._map = []
+            for (let idx in _map) this._map[idx] = _map[idx]
+			this._varimap = []
+            for (let idx in _varimap) this._varimap[idx] = _varimap[idx]
+		}
+		else {
+			this._map = _map
+			this._varimap = _varimap
+		}
+	}
+    get size() { 
+        let count=0; 
+        this._map.forEach(v => {if (v>=0) count++})
+        this._varimap.forEach(v => {if (v>=0) count++})
+        return count
+    }
+    get boundingBox() {
+        let bb = new DATA.BoundingBox()
+        bb.max = [-1*NewWorldMap.worldOrigin,-1*NewWorldMap.worldOrigin,-1*NewWorldMap.worldOrigin]
+        bb.min = [NewWorldMap.worldOrigin,NewWorldMap.worldOrigin,NewWorldMap.worldOrigin]
+        this._map.forEach( (val, idx) => {
+            let p = NewWorldMap.hashToPoint(idx)
+            for (let dim of [0,1,2]) {
+                if (p[dim] < bb.min[dim]) bb.min[dim] = p[dim]
+                if (p[dim] > bb.max[dim]) bb.max[dim] = p[dim]
+            }
+        } )
+        return bb
+    }
+    setHash(idx,val) { this._map[idx] = val }
+    setPoint(p,val) { this.setHash(NewWorldMap.pointToHash(p),val) }
+    getHash(idx) { return this._map[idx] }
+    getPoint(p) { return this.getHash(NewWorldMap.pointToHash(p))}
+	getStateHash(idx) { 
+		if (this._map[idx] >=0) return 1
+		if (this._varimap[idx] >= 0) return 2
+		else return 0
+	}
+	getStatePoint(p) { return this.getStateHash(NewWorldMap.pointToHash(p)) }
+	setStateHash(idx, s) {
+		if (s==0) { delete this._map[idx];delete this._varimap[idx] }
+		if (s==1) { this._map[idx]=0;delete this._varimap[idx] }
+		if (s==2) { delete this._map[idx];this._varimap[idx]=0 }
+	}
+	setStatePoint(p,s) { this.setStateHash(NewWorldMap.pointToHash(p),s)}
+	clearHash(idx) { delete this._map[idx];delete this._varimap[idx]}
+    clearPoint(p) { this.clearHash(NewWorldMap.pointToHash(p)) }
+    hasHash(idx) { return (this._map[idx]>=0 || this._varimap[idx]>=0) }
+    hasPoint(p) { return this.hasHash(NewWorldMap.pointToHash(p)) }
+    canMove(valArray, translation) {
+        // check if the pieces in valArray can move along translation
+        for (let idx in this._map) {
+            if ( valArray.includes(this._map[idx])  ) {
+                // check if this can move
+                let idxOffset = NewWorldMap.worldSteps[0]*translation[0] + NewWorldMap.worldSteps[1]*translation[1] + NewWorldMap.worldSteps[2]*translation[2]
+                let targetIdx = idx*1 + idxOffset
+                let targetVal = this._map[targetIdx]
+                if (!(targetVal === undefined || valArray.includes(targetVal))) return false
+            }
+        }
+        return true
+    }
+    move(valArray, translation) {
+        // does not check if move is valid
+        // build new array, because "delete" of old entries is too expensive
+		// update in place
+        let newArray = []
+        for (let idx in this._map) {
+            if ( valArray.includes(this._map[idx])  ) {
+                // check if this can move
+                let idxOffset = NewWorldMap.worldSteps[0]*translation[0] + NewWorldMap.worldSteps[1]*translation[1] + NewWorldMap.worldSteps[2]*translation[2]
+                let targetIdx = idx*1 + idxOffset
+                newArray[targetIdx] = this._map[idx]
+            }
+            else {
+                newArray[idx] = this._map[idx]
+            }
+        }
+        this._map = newArray
+        return this
+    }
+	rotate(rotationIdx) {
+		let newArray = []
+		for (let idx in this._map) {
+			let pos=NewWorldMap.hashToPoint(this._map[idx])
+			newArray[NewWorldMap.pointToHash(rotatePoint(pos, rotationIdx))] = this._map[idx]
+		}
+		this._map = newArray
+	}
+    canPlace(worldmap) {
+        // check that the destination is free
+        for (let idx in worldmap._map) {
+            if (this.hasHash(idx)) return false
+        }
+        return true
+    }
+    place(worldmap) {
+        // does not check if placement is possible
+        for (let idx in worldmap._map) {
+            this._map[idx] = worldmap._map[idx]
+        }
+        return this
+    }
+    getMovingPieces(valArray, translation) {
+        // valArray needs to be a dense array
+        // extend the valArray to the pieces we drag along
+        // translation is supposed to be only 1 step away, but you could use different values
+        let mpl = valArray.map(v => v) // copy the array, result is dense starting at 0
+        let oldlen=0
+        while (oldlen != mpl.length) {
+            oldlen = mpl.length
+            for (let idx in this._map) {
+                if ( mpl.includes(this._map[idx])  ) {
+                    // check if this idx has conflicts
+                    let idxOffset = NewWorldMap.worldSteps[0]*translation[0] + NewWorldMap.worldSteps[1]*translation[1] + NewWorldMap.worldSteps[2]*translation[2]
+                    let targetIdx = idx*1 + idxOffset
+                    let targetVal = this._map[targetIdx]
+                    if (!(targetVal === undefined || mpl.includes(targetVal))) {
+                        // conflict
+                        mpl.push(targetVal) // fastest operation on earth
+                    }
+                }
+            }
+        }
+        return mpl // valArray is not modified
+    }
+    remap(newval) {
+        for (let idx in this._map) this._map[idx] = newval
+        for (let idx in this._varimap) this._varimap[idx] = newval
+        return this
+    }
+	filter(valArray) {
+        let res=[]
+        for (let idx in this._map) {if (valArray.includes(this._map[idx])) res[idx]=this._map[idx]}
+        return res
+	}
+	get pieceList() {
+        let pl = []
+        for (let idx in this._map) {
+            if (!pl.includes(this._map[idx])) pl.push(this._map[idx])
+        }
+		return pl
+//		return pl.sort((a,b)=>a-b)
+	}
+    clone() {
+        return new NewWorldMap(this)
+    }
+}
+
+export class OldWorldMap {
 	// map will contain entries of the form:
 	//   '1 2 3': 5
 	// meaning position { x:1, y: 2, z: 3} is occupied by piece 5
@@ -1157,65 +1288,6 @@ export class WorldMap {
 	// empty voxels are NOT represented in this data structure
 	// _arr is the sequential array of filled voxels (value is '1 2 3')
 	// _variarr is the sequential array of variable voxels
-	_map // Map()
-	_varimap // Map()
-	constructor(options = {}) {
-		let { map = new Map(), varimap = new Map(), copy = false} = options
-		if (copy) {
-			this._map = new Map(map)
-			this._varimap = new Map(varimap)
-		}
-		else {
-			this._map = map
-			this._varimap = varimap
-		}
-	}
-	get positionList() {
-		return [...this._map.keys()]
-	}
-	get filledEntries() {
-		return this._map.entries()
-	}
-	get variEntries() {
-		return this._varimap.entries()
-	}
-	has(pos) { return (this._map.has(pos) || this._varimap.has(pos))}
-	getClone() {
-		let newMap = new WorldMap({map: this._map, varimap: this._varimap, copy:true})
-		return newMap
-	}
-	remap(v) {
-		for (let pos of this._map.keys()) this._map.set(pos,v)
-		for (let pos of this._varimap.keys()) this._varimap.set(pos,v)
-		return this
-	}
-	get pieceList() {
-		return [...this._map.values()].filter((val, idx, arr) => arr.indexOf(val) === idx ).sort((a,b)=>a-b)
-	}
-	filter(searchValues) {
-		// searchValues should be an array of values to return
-		if (!Array.isArray(searchValues)) searchValues = [searchValues]
-		return new WorldMap( {
-				map: new Map([...this._map.entries()].filter( entry => searchValues.includes(entry[1]))),
-				varimap: new Map([...this._varimap.entries()].filter( entry => searchValues.includes(entry[1]))),
-			} )
-	}
-	delete(searchValues) {
-		// searchValues should be an array of values to delete
-		if (!Array.isArray(searchValues)) searchValues = [searchValues]
-		this._map.forEach((val, pos) => {if (searchValues.includes(val)) this._map.delete(pos)})
-		this._varimap.forEach((val, pos) => {if (searchValues.includes(val)) this._varimap.delete(pos)})
-		return this
-	}
-	canPlace(worldmap) {
-		// no need to check varimapf
-		for (let pos of worldmap.positions) {
-			if (this._map.has(pos)) {
-				return false
-			}
-		}
-		return true
-	}
 	getDLXmap(smallWorldmap) {
 		// This is specific for the Dancing Link algorithm (algoritm X) of Donald A. Knuth 
 		// See https://www.npmjs.com/package/dancing-links
@@ -1235,90 +1307,15 @@ export class WorldMap {
 		}
 		return constraint
 	}
-	place(worldmap) {
-		for ( let [pos, val] of worldmap.filledEntries) {
-			this._map.set(pos,val)
-		}
-		for ( let [pos, val] of worldmap.variEntries) {
-			this._varimap.set(pos,val)
-		}
-		return this
-	}
 	rotate(idx) {
 		// in place rotation
 		this._map = rotateMap(this.filledEntries, idx)
 		this._varimap = rotateMap(this.variEntries, idx)
 		return this
 	}
-	translate(translation) {
-		// in place translation
-		this._map = translateMap(this.filledEntries, translation)
-		this._varimap = translateMap(this.variEntries, translation)
-		return this
-	}
-	translateToClone(translation) {
-		let clone = new WorldMap( { 
-			map: translateMap(this.filledEntries, translation), 
-			varimap: translateMap(this.variEntries, translation) } )
-		return clone
-	}
 	rotateToClone(idx) {
 		let clone = new WorldMap( { map: rotateMap(this.filledEntries, idx), varimap: rotateMap(this.variEntries, idx) } )
 		return clone
-	}
-	checkMoveConflicts(pieceList, translation) {
-		// Array. Return the list of pieces that interfere with our translated position
-		// Only need to check map (varimap not important)
-		if (!Array.isArray(pieceList)) pieceList = [ pieceList ]
-		let pieceMap = this.filter(pieceList).translate(translation)
-		let conflictList = []
-		for (let [pos, val] of pieceMap.filledEntries) {
-			if (this._map.has(pos)) {
-				// something is there
-				if (pieceList.includes(this._map.get(pos))) {
-					// it is one of our own pieces
-				}
-				else {
-					// we have a conflict, add the conflicting piece to the stack
-					if (!conflictList.includes(this._map.get(pos))) conflictList.push(this._map.get(pos))
-				}
-			}
-		}
-		return conflictList.sort((a,b)=>a-b)
-	}
-	canMove(pieceList, translation) {
-		// true or false, check if we can move the piecList in the translation direction
-		// Only need to check map (varimap not important)
-		if (!Array.isArray(pieceList)) pieceList = [ pieceList ]
-		let pieceMap = this.filter(pieceList).translate([translation.x,translation.y,translation.z])
-		for (let [pos, val] of pieceMap.filledEntries) {
-			if (this._map.has(pos)) {
-				// something is there
-				if (pieceList.includes(this._map.get(pos))) {
-					// it is one of our own pieces
-				}
-				else {
-					// conflict
-					return false
-				}
-			}
-		}
-		return true
-	}
-	getMovingPiecelist(pieceList, translation) {
-		// starting from pieceList, extend to all the pieces we would drag along in the translation direction
-		// Only need to check map (varimap not important)
-		if (!Array.isArray(pieceList)) pieceList = [ pieceList ]
-		let theList = [...pieceList]
-		let conflicts=this.checkMoveConflicts(theList, translation)
-		while (conflicts.length > 0) {
-			theList.push(...conflicts)
-			conflicts=this.checkMoveConflicts(theList, translation)
-		}
-		return theList.sort()		
-	}
-	tempFunc(piece, translation) {
-
 	}
 }
 
@@ -1414,7 +1411,7 @@ export class Puzzle {
 		//      piecePositions is sparse, format of state
 		//      pieceNumbers is sequential, maps to index in problem.shapeMap
 		// getWorldMap({solution: sol, problem: prob, pieceNumbers: [1, 2], piecePositions: [{x: 1, y: 2, z: 3}, {x: 2, y: 3, z: 4}]})
-		let worldMap=new WorldMap()
+		let worldMap=new NewWorldMap()
         let pieceMap = solution.pieceMap
 		if (!pieceNumbers || !piecePositions) {
 			pieceNumbers = solution.assembly.pieceNumbers
@@ -1428,7 +1425,7 @@ export class Puzzle {
             let shape=this.shapes.voxel[shapeID]
 			let rotationIndex = pieceMap[pieceID].rotation
 			let position = piecePositions[pieceID]
-			let shapeMap = shape.worldmap.getClone().remap(pieceID)
+			let shapeMap = shape.worldmap.clone().remap(pieceID)
 			shapeMap.rotate(rotationIndex)
 			shapeMap.translate(position)
 			worldMap.place(shapeMap)

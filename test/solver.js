@@ -130,9 +130,9 @@ class Assembler {
             let resultwm = this.resultVoxel.worldmap
             let count = 0
             // check that worldmap positions map to the result
-            for ( let [pos,idx] of wm.filledEntries ) {
+            for ( let hash in wm._map ) {
                 count++
-                if (!resultwm.has(pos)) console.log("ERROR in position", pos, idx)
+                if (!resultwm.hasHash(hash)) console.log("ERROR in position", hash, idx)
             }
             // check for duplicates (expensive check) based on rotations and offsets
             let voxelList=[]
@@ -232,10 +232,10 @@ class Node {
     get positionList() { 
         return this.hotspotList.map((v, idx) => [v[0] + this.offsetList[idx][0],v[1] + this.offsetList[idx][1],v[2] + this.offsetList[idx][2]])
     }
-    getWorldmap(pieceList) {
-        let resultWM = new DATA.WorldMap()
+    getWorldmap() {
+        let resultWM = new DATA.NewWorldMap()
         for (let idx in this.worldmapList) {
-            resultWM.place(this.worldmapList[idx].translateToClone(this.offsetList[idx]))
+            resultWM.place(this.worldmapList[idx].clone().translate(this.offsetList[idx]))
         }
         return resultWM
     }

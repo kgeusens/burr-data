@@ -1,3 +1,27 @@
+class testSparseArray {
+    type="sparse"
+    container
+    constructor() {
+        this.container = []
+    }
+    add(idx, val) {
+        this.container[idx + indexOffset]=val
+    }
+    has(index) {
+        return (this.container[index + indexOffset] >=0)
+    }
+    hasNot(index) {
+        return (this.container[index + indexOffset] >=0)
+    }
+    iterate() {
+        for (let i in this.container) {
+            if (i<indexOffset) throw("impossible iterate()")
+        }
+    }
+    delete(idx) {
+        delete this.container[idx + indexOffset]
+    }
+}
 
 class testArray {
     type="array"
@@ -6,7 +30,7 @@ class testArray {
         this.container = []
     }
     add(idx, val) {
-        this.container[idx*3]=val
+        this.container[idx]=val
     }
     has(val) {
 //        return this.container.includes(val)
@@ -16,7 +40,12 @@ class testArray {
         return this.container.includes(val)
     }
     iterate() {
-        this.container.forEach(v => {if (v=="impossible") throw("impossible")})   
+        this.container.forEach((v,i) => {if (i<0) throw("impossible")})   
+    }
+    iterate2() {
+        for (let i in this.container) {
+            if (i<0) throw("impossible iterate()")
+        }
     }
     deleteFirst(idx) {
         return this.container.pop()
@@ -44,10 +73,7 @@ class testObject {
     iterate() {
         for ( let [idx, val] of Object.entries(this.container) ) {if(idx == "impossible") throw("impossible")}
     }
-    deleteFirst(idx) {
-        delete this.container[idx]
-    }
-    deleteLast(idx) {
+    delete(idx) {
         delete this.container[idx]
     }
 }
@@ -94,12 +120,12 @@ class testMap {
         return this.container.has(idx)
     }
     iterate() {
-        for ( let [idx, val] of this.container.entries()) {if(idx == "impossible") throw("impossible")}
+        for ( let [hash, val] of this.container.entries()) {if(val == "impossible") throw("impossible")}
     }
-    deleteFirst(idx) {
-        return this.container.delete(idx)
+    iterate2() {
+        this.container.forEach((val, hash) => {if(val == "impossible") throw("impossible")})
     }
-    deleteLast(idx) {
+    delete(idx) {
         return this.container.delete(idx)
     }
 }
@@ -110,10 +136,13 @@ let a = new testArray()
 let s = new testSet()
 let m = new testMap()
 let o = new testObject()
+let sa = new testSparseArray()
 
-let containers = [a, s, m, o]
+let containers = [m]
+//let containers = [sa, a, s, m, o]
 
-let runLength=100000
+const runLength=100000
+const indexOffset=4000000
 
 console.profile()
 for (let idx=runLength; idx >=0; idx--) {
@@ -125,17 +154,16 @@ for (let idx=runLength; idx >=0; idx--) {
 for (let c of containers) {
     for (let idx=runLength; idx >=1; idx--) {
 //        if (!c.has(idx)) throw(c.type + ".has(" +idx+ ") returned false")
-//        if (c.hasNot(-1*idx)) throw(c.type + ".hasNot(" +idx+ ") returned false")
+//        if (c.hasNot(-1*idx)) throw(c.type + ".hasNot(" +idx+ ") returned true")
     }
-//    c.iterate()
+    c.iterate()
+    c.iterate2()
 }
 
 for (let idx=runLength; idx >=1; idx--) {
     for (let c of containers) {
-//        c.deleteFirst(idx)
-        c.deleteLast(runLength - idx + 1)
+//        c.delete(idx)
     }
 }
-
 
 console.profileEnd()

@@ -92,7 +92,8 @@ class Assembler {
                         for (let z = rbb.min[2] - pbb.min[2]; z <= rbb.max[2] - pbb.max[2];z++) {
                             let offset = [x, y, z]
 //                            console.log("offset", offset)
-                            let wm = rotatedInstance.worldmap.clone().translate(offset)
+//                            let wm = rotatedInstance.worldmap.clone().translate(offset)
+                            let wm = rotatedInstance.worldmap.translateToClone(offset)
                             let map = r.worldmap.getDLXmap(wm)
 //                            let map = null
                             if (map) {
@@ -148,7 +149,7 @@ class Assembler {
     }
     solve() {
         for (let idx in this._assemblies) {
-//            console.log("solving assembly", idx)
+            console.log("solving assembly", idx)
             let rootNode = new Node()
             rootNode.setFromAssembly(this._assemblies[idx])
             solve(rootNode)
@@ -157,6 +158,9 @@ class Assembler {
     debug(idx=0) {
         let rootNode = new Node()
         rootNode.setFromAssembly(this._assemblies[idx])
+//        rootNode.debug()
+        prepare(rootNode)
+        return
         let node1 = new Node(rootNode, [0], [0, -1, 0])
         let node2 = new Node(node1, [0], [0, -1, 0])
         let node = rootNode
@@ -233,9 +237,9 @@ class Node {
         return this.hotspotList.map((v, idx) => [v[0] + this.offsetList[idx][0],v[1] + this.offsetList[idx][1],v[2] + this.offsetList[idx][2]])
     }
     getWorldmap() {
-        let resultWM = new DATA.NewWorldMap()
+        let resultWM = new DATA.MapWorldMap()
         for (let idx in this.worldmapList) {
-            resultWM.place(this.worldmapList[idx].clone().translate(this.offsetList[idx]))
+            resultWM.place(this.worldmapList[idx].translateToClone(this.offsetList[idx]))
         }
         return resultWM
     }
@@ -253,6 +257,12 @@ class Node {
         // ID = the concatenation of the positionList, but normalized to the first element at [0,0,0]
         let firstPos = this.positionList[0]
         this.id = this.positionList.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).flat().join(" ")
+    }
+    debug() {
+        for (let idx in this.worldmapList) {
+            console.log("debug node: idx", idx)
+            this.worldmapList[idx].translateToClone(this.offsetList[idx])._map.forEach((val, hash) => console.log(hash, DATA.MapWorldMap.hashToPoint(hash)))
+        }
     }
 }
 
@@ -285,10 +295,10 @@ for performance reasons, calculating mpl and the boundingBoxes can be done in 1 
 
 function prepare(node) {
     function getMovingPiecelist(idxList, translation) {
-        return wm.getMovingPiecelist(idxList, translation)
+        return wm.getMovingPieces(idxList, translation)
     }
     function canMove(idxList, translation) {
-        let pl = wm.getMovingPiecelist(idxList, translation)
+        let pl = wm.getMovingPieces(idxList, translation)
         return (pl.length == idxList.length)
     }
     function getMaxMoves(mpl, dim=0, step) {
@@ -319,7 +329,7 @@ function prepare(node) {
             for (let minstep of [1, -1]) {
                 let dir = [0,0,0]
                 dir[dim] = minstep
-                let mpl = getMovingPiecelist(pidx*1, dir) // a
+                let mpl = getMovingPiecelist([pidx*1], dir) // a
                 if (mpl.length == node.pieceList.length) continue // i
                 let newNode = new Node(node, mpl, dir)
                 if (mplCache.includes(newNode.id)) continue // i
@@ -328,9 +338,11 @@ function prepare(node) {
                 // ii.
                 let maxMoves = getMaxMoves(mpl, dim, minstep)
                 let move = 2
+//                console.log("mpl", mpl, "dir", dir)
                 while (move <= maxMoves) {
                     dir[dim]=minstep*move
                     if (canMove(mpl, dir)) {
+//                        console.log("mpl", mpl, "dir", dir)
                         let newNode = new Node(node, mpl, dir)
                         if (mplCache.includes(newNode.id)) break // i
                         mplCache.push(newNode.id)
@@ -385,7 +397,7 @@ function solve(startNode) {
             }
             // this is a separation, continue to analyse the two subproblems
             // not implemented yet
-//            console.log ("SEPARATION FOUND")
+            console.log ("SEPARATION FOUND")
             return st
         }
         // if we get here, we have exhausted this layer of the search tree
@@ -401,9 +413,22 @@ function solve(startNode) {
             newFront = (newFront + 1) % 3;
         }
     }
-//    console.log("DEAD END")
+    console.log("DEAD END")
     // the entire tree has been processed, no separation found
     return null
+}
+
+function profileRun(assembler)
+{
+    let ri = new DATA.VoxelInstance( { voxel:a.resultVoxel } )
+    for (let c = 0;c<16666;c++) {
+        ri.worldmap.translate([1,0,0])
+        ri.worldmap.translate([0,1,0])
+        ri.worldmap.translate([0,0,1])
+        ri.worldmap.translate([-1,0,0])
+        ri.worldmap.translate([0,-1,0])
+        ri.worldmap.translate([0,0,-1])
+    }
 }
 
 // Read a plain text xml file and load it (in the xmpuzzle format)
@@ -411,12 +436,15 @@ const xmpuzzleFile = readFileSync("misusedKey.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 
 let a = new Assembler(theXMPuzzle)
+let count="count not calculated"
 //a.assemble()
 console.profile()
-//a.getDLXmatrix()
-let numAssemblies = a.assemble()
+//count=a.getDLXmatrix().length
+    count = a.assemble()
+    a.solve()
+//    profileRun(a)
 console.profileEnd()
-console.log(numAssemblies)
-a.checkAssembly()
+console.log(count)
+//a.checkAssembly()
 //a.debug()
 //a.solve()

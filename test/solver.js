@@ -237,7 +237,7 @@ class Node {
         return this.hotspotList.map((v, idx) => [v[0] + this.offsetList[idx][0],v[1] + this.offsetList[idx][1],v[2] + this.offsetList[idx][2]])
     }
     getWorldmap() {
-        let resultWM = new DATA.MapWorldMap()
+        let resultWM = new DATA.WorldMap()
         for (let idx in this.worldmapList) {
             resultWM.place(this.worldmapList[idx].translateToClone(this.offsetList[idx]))
         }
@@ -261,7 +261,7 @@ class Node {
     debug() {
         for (let idx in this.worldmapList) {
             console.log("debug node: idx", idx)
-            this.worldmapList[idx].translateToClone(this.offsetList[idx])._map.forEach((val, hash) => console.log(hash, DATA.MapWorldMap.hashToPoint(hash)))
+            this.worldmapList[idx].translateToClone(this.offsetList[idx])._map.forEach((val, hash) => console.log(hash, DATA.WorldMap.hashToPoint(hash)))
         }
     }
 }
@@ -298,8 +298,7 @@ function prepare(node) {
         return wm.getMovingPieces(idxList, translation)
     }
     function canMove(idxList, translation) {
-        let pl = wm.getMovingPieces(idxList, translation)
-        return (pl.length == idxList.length)
+        return wm.canMove(idxList,translation)
     }
     function getMaxMoves(mpl, dim=0, step) {
         let maxmpl = 0

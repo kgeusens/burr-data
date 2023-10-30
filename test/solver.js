@@ -361,7 +361,7 @@ function prepare(node) {
                 // ii.
                 let maxMoves = getMaxMoves(mpl, dim, minstep)
                 let move = 2
-                console.log("mpl", mpl, "dir", dir)
+//                console.log("mpl", mpl, "dir", dir)
                 while (move <= maxMoves) {
                     dir[dim]=minstep*move
                     if (canMove(mpl, dir, resultWM, pieceWM)) {

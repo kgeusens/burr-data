@@ -159,7 +159,7 @@ class Assembler {
         let rootNode = new Node()
         rootNode.setFromAssembly(this._assemblies[idx])
 //        rootNode.debug()
-        prepare(rootNode)
+        solve(rootNode)
         return
         let node1 = new Node(rootNode, [0], [0, -1, 0])
         let node2 = new Node(node1, [0], [0, -1, 0])
@@ -236,12 +236,15 @@ class Node {
     get positionList() { 
         return this.hotspotList.map((v, idx) => [v[0] + this.offsetList[idx][0],v[1] + this.offsetList[idx][1],v[2] + this.offsetList[idx][2]])
     }
-    getWorldmap() {
+    getWorldmaps() {
         let resultWM = new DATA.WorldMap()
-        for (let idx in this.worldmapList) {
-            resultWM.place(this.worldmapList[idx].translateToClone(this.offsetList[idx]))
-        }
-        return resultWM
+        let pieceWM = []
+        this.worldmapList.forEach((v,idx) => {
+                let pwm = this.worldmapList[idx].translateToClone(this.offsetList[idx])
+                pieceWM[idx] = pwm
+                resultWM.place(pwm)
+            })
+        return {resultWM:resultWM, pieceWM:pieceWM}
     }
     setFromAssembly(assembly) {
         // assembly is an array of pieces, it contains a property called "data" with info that we passed to the assembler.
@@ -294,11 +297,30 @@ for performance reasons, calculating mpl and the boundingBoxes can be done in 1 
 */
 
 function prepare(node) {
-    function getMovingPiecelist(idxList, translation) {
-        return wm.getMovingPieces(idxList, translation)
+    function getMovingPiecelist(valArray, translation, rwm, pwmList) {
+		let mpl = []
+		let mplVal = [...valArray]
+		let mplCount = 0
+        let hashOffset = DATA.WorldMap.worldSteps[0]*translation[0] + DATA.WorldMap.worldSteps[1]*translation[1] + DATA.WorldMap.worldSteps[2]*translation[2]
+		for (let piece of valArray) { mpl[piece] = true;mplCount++}
+        let oldlen=0
+        // now loop over mplval and append conflicting pieces if not yet in the list. One iteration should do the trick
+        for (let i=0;i<mplVal.length;i++) {
+            let pwm = pwmList[i] // the worldmap of the piece
+            pwm._map.forEach((val, hash) => {
+                // check
+                let targetHash = hash*1 + hashOffset
+                let targetVal = rwm._map.get(targetHash)
+                if (!(targetVal === undefined || mpl[targetVal])) {
+                    // conflict
+                    mpl[targetVal]=true;mplCount++;mplVal.push(targetVal) // fastest operation on earth
+                }
+            })
+        }
+        return mplVal // valArray is not modified
     }
-    function canMove(idxList, translation) {
-        return wm.canMove(idxList,translation)
+    function canMove(idxList, translation, rwm, pwmList) {
+        return rwm.canMove(idxList,translation)
     }
     function getMaxMoves(mpl, dim=0, step) {
         let maxmpl = 0
@@ -321,14 +343,15 @@ function prepare(node) {
         else return maxmpl - minrest
     }
     let moveslist = []
-    let wm = node.getWorldmap()
+    let {resultWM, pieceWM} = node.getWorldmaps()
     let mplCache = [] // 0
+    console.log("prepare")
     for (let pidx in node.pieceList) { // 1
         for (let dim of [0,1,2]) {
             for (let minstep of [1, -1]) {
                 let dir = [0,0,0]
                 dir[dim] = minstep
-                let mpl = getMovingPiecelist([pidx*1], dir) // a
+                let mpl = getMovingPiecelist([pidx*1], dir, resultWM, pieceWM) // a
                 if (mpl.length == node.pieceList.length) continue // i
                 let newNode = new Node(node, mpl, dir)
                 if (mplCache.includes(newNode.id)) continue // i
@@ -340,7 +363,7 @@ function prepare(node) {
 //                console.log("mpl", mpl, "dir", dir)
                 while (move <= maxMoves) {
                     dir[dim]=minstep*move
-                    if (canMove(mpl, dir)) {
+                    if (canMove(mpl, dir, resultWM, pieceWM)) {
 //                        console.log("mpl", mpl, "dir", dir)
                         let newNode = new Node(node, mpl, dir)
                         if (mplCache.includes(newNode.id)) break // i
@@ -402,7 +425,8 @@ function solve(startNode) {
         // if we get here, we have exhausted this layer of the search tree
         // move to the next layer
         if (openlist[curListFront].length == 0) {
-//            console.log("Finished Level", level++)
+            console.log("Finished Level", level++)
+            console.log(closedCache[newFront])
             curListFront = 1 - curListFront;
             newListFront = 1 - newListFront;
             closed[oldFront]=[]
@@ -440,7 +464,8 @@ let count="count not calculated"
 console.profile()
 //count=a.getDLXmatrix().length
     count = a.assemble()
-    a.solve()
+//    a.solve()
+    a.debug(240)
 //    profileRun(a)
 console.profileEnd()
 console.log(count)

@@ -1274,29 +1274,30 @@ export class WorldMap {
         // valArray needs to be a dense array
         // extend the valArray to the pieces we drag along
         // translation is supposed to be only 1 step away, but you could use different values
-        let mpl = valArray.map(v => v) // copy the array, result is dense starting at 0
+//		let mpl = valArray.map(v => v) // copy the array, result is dense starting at 0
+		let mpl = []
+		let mplVal = [...valArray]
+		let mplCount = 0
+		for (let piece of valArray) { mpl[piece] = true;mplCount++}
         let oldlen=0
-        while (oldlen != mpl.length && mpl.length < this.numPieces) {
-            oldlen = mpl.length
-
+        while (oldlen != mplCount && mplCount < this.numPieces) {
+            oldlen = mplCount
 
             this._map.forEach((val,idx) => {
-                if ( mpl.includes(val)  ) {
+                if ( mpl[val]  ) {
                     // check if this idx has conflicts
                     let idxOffset = WorldMap.worldSteps[0]*translation[0] + WorldMap.worldSteps[1]*translation[1] + WorldMap.worldSteps[2]*translation[2]
                     let targetIdx = idx*1 + idxOffset
                     let targetVal = this._map.get(targetIdx)
-					let pos = WorldMap.hashToPoint(idx) // KG
-					let targetPos = WorldMap.hashToPoint(targetIdx) // KG
-                    if (!(targetVal === undefined || mpl.includes(targetVal))) {
+                    if (!(targetVal === undefined || mpl[targetVal])) {
                         // conflict
-                        mpl.push(targetVal) // fastest operation on earth
+                        mpl[targetVal]=true;mplCount++;mplVal.push(targetVal) // fastest operation on earth
                     }
                 }
             })
 
         }
-        return mpl // valArray is not modified
+        return mplVal // valArray is not modified
     }
     remap(newval) {
         this._map.forEach((val, idx) => {this._map.set(idx,newval)})

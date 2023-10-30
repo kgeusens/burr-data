@@ -302,9 +302,8 @@ function prepare(node) {
     function getMovingPiecelist(valArray, translation, rwm, pwmList) {
 		let mpl = []
 		let mplVal = [...valArray]
-		let mplCount = 0
         let hashOffset = DATA.WorldMap.worldSteps[0]*translation[0] + DATA.WorldMap.worldSteps[1]*translation[1] + DATA.WorldMap.worldSteps[2]*translation[2]
-		for (let piece of valArray) { mpl[piece] = true;mplCount++}
+		for (let piece of valArray) { mpl[piece] = true}
         // now loop over mplval and append conflicting pieces if not yet in the list. One iteration should do the trick
         for (let i=0;i<mplVal.length;i++) {
             let pwm = pwmList[mplVal[i]] // the worldmap of the piece
@@ -314,7 +313,7 @@ function prepare(node) {
                 let targetVal = rwm._map.get(targetHash)
                 if (!(targetVal === undefined || mpl[targetVal])) {
                     // conflict
-                    mpl[targetVal]=true;mplCount++;mplVal.push(targetVal) // fastest operation on earth
+                    mpl[targetVal]=true;mplVal.push(targetVal) // fastest operation on earth
                 }
             })
             if (mplVal.length == node.pieceList.length) break
@@ -330,9 +329,8 @@ function prepare(node) {
         let maxrest = 0
         let minrest = 30000
         for (let idx in node.pieceList) {
-            let bb=node.instances[idx].boundingBox
-            let max = bb.max[dim] + node.offsetList[idx][dim]
-            let min = bb.min[dim] + node.offsetList[idx][dim]
+            let max = node.instances[idx].boundingBox.max[dim] + node.offsetList[idx][dim]
+            let min = node.instances[idx].boundingBox.min[dim] + node.offsetList[idx][dim]
             if (idx in mpl) {
                 if (max>maxmpl) maxmpl = max
                 if (min<minmpl) minmpl = min
@@ -345,6 +343,7 @@ function prepare(node) {
         if (step == 1) return maxrest - minmpl
         else return maxmpl - minrest
     }
+    
     let moveslist = []
     let {resultWM, pieceWM} = node.getWorldmaps()
     let mplCache = [] // 0

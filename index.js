@@ -1186,8 +1186,8 @@ export class WorldMap {
 	}
 	getStatePoint(p) { return this.getStateHash(WorldMap.pointToHash(p)) }
 	setStateHash(idx, s) {
-		if (s==0) { this._map.delete(idx);this._varimap.delete(idx) }
-		if (s==1) { this._map.set(idx,1);this._varimap.delete(idx) }
+		if (s==0) { this._map.delete(idx);this._varimap?.delete(idx) }
+		if (s==1) { this._map.set(idx,1);this._varimap?.delete(idx) }
 		if (s==2) { delete this._map.delete(idx);this._varimap.set(idx,1) }
 	}
 	setStatePoint(p,s) { this.setStateHash(WorldMap.pointToHash(p),s)}
@@ -1230,16 +1230,12 @@ export class WorldMap {
     translate(translation) {
 		// update in place
         let newMap = new Map()
-//		let newArray = []
 		this._map.forEach((val, hash) => {
             let hashOffset = WorldMap.worldSteps[0]*translation[0] + WorldMap.worldSteps[1]*translation[1] + WorldMap.worldSteps[2]*translation[2]
             let targetHash = hash*1 + hashOffset
-//			newArray.push([targetHash, val])
             newMap.set(targetHash, val)
 		})
         this._map = newMap
-//		this._map.clear()
-//		newArray.forEach( v=> this._map.set(v[0],v[1]))
         return this
     }
 	translateToClone(translation) {

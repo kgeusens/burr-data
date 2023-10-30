@@ -857,6 +857,7 @@ export class VoxelInstance {
 	// it rotates and translates the original voxel to place its boundingBox in the beginning of the first quadrant
 	_voxel
 	_worldMap // transformed clone of the voxel worldmap (rotation + offset translation)
+	_boundingBox // cached boundingBox of _worldMap
 	offset = [0,0,0] // offset of the boundingBox
 	rotation = 0
 	hotspot = [0,0,0] // folows the transformations, including the offset
@@ -865,7 +866,7 @@ export class VoxelInstance {
 	get z() { return Number(this.dimension[2]) }
 	get worldmap() { return this._worldMap }
 	get dimension() { return this.worldmap.dimension }
-	get boundingBox() { return this.worldmap.boundingBox }
+	get boundingBox() { return this._boundingBox }
 	constructor(flatObject) {
 		// voxel is mandatory, rotation is optional, offset is optional
 		if (flatObject) {
@@ -886,6 +887,7 @@ export class VoxelInstance {
 			// currently offset is never used, we only rotate, so the answer will need to wait
 			// We probably do, since this property is used to track the position of the origin of the original voxel and that changes whenever we change the worldmap.
 			this.hotspot = translatePoint(this.hotspot, [trans[0] + offset[0], trans[1] + offset[1], trans[2] + offset[2]])
+			this._boundingBox = this._worldMap.boundingBox
 		}
 	}
 	clone() {
@@ -899,6 +901,7 @@ export class VoxelInstance {
 	}
 	translate(translation) {
 		this._worldMap.translate(translation)
+		this._boundingBox = this._worldMap.boundingBox
 		this.hotspot = translatePoint(this.hotspot, translation)
 	}
 }

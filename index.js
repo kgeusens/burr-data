@@ -294,7 +294,7 @@ export class BoundingBox {
 }
 
 export class Voxel {
-	private = { worldmap: new WorldMap() } // worldmap is used to track state at positions
+	private = { worldmap: new PieceMap() } // worldmap is used to track state at positions
 	"@attributes"={x:1, y:1, z:1, type:0} // hx, hy, hz, name, weight
 	text="_"
 	constructor(flatObject = {}) {
@@ -366,7 +366,6 @@ export class Voxel {
 		return ss
 	}
 	set stateString(s) {
-		this.private.worldmap = new WorldMap()
 		let colorlessStateString = s.replace(/\d+/g,"")
 		if (colorlessStateString.length != this.x * this.y * this.z) {
 			throw new Error("Voxel state string has wrong size");
@@ -857,6 +856,7 @@ export class VoxelInstance {
 	// it rotates and translates the original voxel to place its boundingBox in the beginning of the first quadrant
 	_voxel
 	_worldMap // transformed clone of the voxel worldmap (rotation + offset translation)
+	_boundingBox // cached boundingBox of _worldMap
 	offset = [0,0,0] // offset of the boundingBox
 	rotation = 0
 	hotspot = [0,0,0] // folows the transformations, including the offset
@@ -865,7 +865,7 @@ export class VoxelInstance {
 	get z() { return Number(this.dimension[2]) }
 	get worldmap() { return this._worldMap }
 	get dimension() { return this.worldmap.dimension }
-	get boundingBox() { return this.worldmap.boundingBox }
+	get boundingBox() { return this._boundingBox }
 	constructor(flatObject) {
 		// voxel is mandatory, rotation is optional, offset is optional
 		if (flatObject) {
@@ -886,6 +886,7 @@ export class VoxelInstance {
 			// currently offset is never used, we only rotate, so the answer will need to wait
 			// We probably do, since this property is used to track the position of the origin of the original voxel and that changes whenever we change the worldmap.
 			this.hotspot = translatePoint(this.hotspot, [trans[0] + offset[0], trans[1] + offset[1], trans[2] + offset[2]])
+			this._boundingBox = this._worldMap.boundingBox
 		}
 	}
 	clone() {
@@ -899,6 +900,7 @@ export class VoxelInstance {
 	}
 	translate(translation) {
 		this._worldMap.translate(translation)
+		this._boundingBox = this._worldMap.boundingBox
 		this.hotspot = translatePoint(this.hotspot, translation)
 	}
 }
@@ -1183,8 +1185,8 @@ export class WorldMap {
 	}
 	getStatePoint(p) { return this.getStateHash(WorldMap.pointToHash(p)) }
 	setStateHash(idx, s) {
-		if (s==0) { this._map.delete(idx);this._varimap.delete(idx) }
-		if (s==1) { this._map.set(idx,1);this._varimap.delete(idx) }
+		if (s==0) { this._map.delete(idx);this._varimap?.delete(idx) }
+		if (s==1) { this._map.set(idx,1);this._varimap?.delete(idx) }
 		if (s==2) { delete this._map.delete(idx);this._varimap.set(idx,1) }
 	}
 	setStatePoint(p,s) { this.setStateHash(WorldMap.pointToHash(p),s)}
@@ -1227,16 +1229,12 @@ export class WorldMap {
     translate(translation) {
 		// update in place
         let newMap = new Map()
-//		let newArray = []
 		this._map.forEach((val, hash) => {
             let hashOffset = WorldMap.worldSteps[0]*translation[0] + WorldMap.worldSteps[1]*translation[1] + WorldMap.worldSteps[2]*translation[2]
             let targetHash = hash*1 + hashOffset
-//			newArray.push([targetHash, val])
             newMap.set(targetHash, val)
 		})
         this._map = newMap
-//		this._map.clear()
-//		newArray.forEach( v=> this._map.set(v[0],v[1]))
         return this
     }
 	translateToClone(translation) {
@@ -1274,29 +1272,30 @@ export class WorldMap {
         // valArray needs to be a dense array
         // extend the valArray to the pieces we drag along
         // translation is supposed to be only 1 step away, but you could use different values
-        let mpl = valArray.map(v => v) // copy the array, result is dense starting at 0
+//		let mpl = valArray.map(v => v) // copy the array, result is dense starting at 0
+		let mpl = []
+		let mplVal = [...valArray]
+		let mplCount = 0
+		for (let piece of valArray) { mpl[piece] = true;mplCount++}
         let oldlen=0
-        while (oldlen != mpl.length && mpl.length < this.numPieces) {
-            oldlen = mpl.length
-
+        while (oldlen != mplCount && mplCount < this.numPieces) {
+            oldlen = mplCount
 
             this._map.forEach((val,idx) => {
-                if ( mpl.includes(val)  ) {
+                if ( mpl[val]  ) {
                     // check if this idx has conflicts
                     let idxOffset = WorldMap.worldSteps[0]*translation[0] + WorldMap.worldSteps[1]*translation[1] + WorldMap.worldSteps[2]*translation[2]
                     let targetIdx = idx*1 + idxOffset
                     let targetVal = this._map.get(targetIdx)
-					let pos = WorldMap.hashToPoint(idx) // KG
-					let targetPos = WorldMap.hashToPoint(targetIdx) // KG
-                    if (!(targetVal === undefined || mpl.includes(targetVal))) {
+                    if (!(targetVal === undefined || mpl[targetVal])) {
                         // conflict
-                        mpl.push(targetVal) // fastest operation on earth
+                        mpl[targetVal]=true;mplCount++;mplVal.push(targetVal) // fastest operation on earth
                     }
                 }
             })
 
         }
-        return mpl // valArray is not modified
+        return mplVal // valArray is not modified
     }
     remap(newval) {
         this._map.forEach((val, idx) => {this._map.set(idx,newval)})
@@ -1347,6 +1346,249 @@ export class WorldMap {
 	}
 }
 
+export class GroupMap {
+	_map // Map
+    static worldOrigin=100
+	// coordinates range is [-worldOrigin ..0.. +worldOrigin]
+    static worldMax=2*GroupMap.worldOrigin + 1
+    static worldOriginIndex = GroupMap.worldOrigin*(GroupMap.worldMax*GroupMap.worldMax + GroupMap.worldMax + 1)
+    static worldSteps = [1, GroupMap.worldMax, GroupMap.worldMax*GroupMap.worldMax]
+    static worldSize = GroupMap.worldMax*GroupMap.worldMax*GroupMap.worldMax
+    static hashToPoint(hash) {
+        let h = Number(hash)
+        let x = h % GroupMap.worldMax; h = (h - x)/GroupMap.worldMax
+        let y = h % GroupMap.worldMax; h = (h - y)/GroupMap.worldMax
+        let z = h
+        return [x-GroupMap.worldOrigin,y-GroupMap.worldOrigin,z-GroupMap.worldOrigin]
+    }
+    static pointToHash(point) {return (GroupMap.worldOriginIndex + GroupMap.worldMax*(point[2]*GroupMap.worldMax + point[1]) + point[0]) }
+    
+	constructor(source = {}, copy=true ) {
+		let { _map, _varimap} = source
+		if (copy) {
+			this._map = new Map(_map)
+		}
+		else {
+			this._map = _map
+		}
+	}
+	get numPieces() {
+		return this._map.size
+	}
+    getHash(idx) { return this._map.get(idx) }
+    getPoint(p) { return this.getHash(GroupMap.pointToHash(p))}
+    hasHash(idx) { return (this._map.has(idx) || this._varimap.has(idx)) }
+    hasPoint(p) { return this.hasHash(GroupMap.pointToHash(p)) }
+    canMove(valArray, translation) {
+        // check if the pieces in valArray can move along translation
+        for (let [hash, val] of this._map.entries()) {
+            if ( valArray.includes(val)  ) {
+                // check if this can move
+                let idxOffset = GroupMap.worldSteps[0]*translation[0] + GroupMap.worldSteps[1]*translation[1] + GroupMap.worldSteps[2]*translation[2]
+                let targetIdx = hash*1 + idxOffset
+                let targetVal = this.getHash(targetIdx)
+                if (!(targetVal === undefined || valArray.includes(targetVal))) return false
+            }
+        }
+        return true
+    }
+    place(pieceMap, newval) {
+        // does not check if placement is possible
+		// pieceMap is a Set
+		pieceMap._map.forEach((val, hash) => this._map.set(hash, newval))
+        return this
+    }
+	/*
+    getMovingPieces(valArray, translation) {
+        // valArray needs to be a dense array
+        // extend the valArray to the pieces we drag along
+        // translation is supposed to be only 1 step away, but you could use different values
+//		let mpl = valArray.map(v => v) // copy the array, result is dense starting at 0
+		let mpl = []
+		let mplVal = [...valArray]
+		let mplCount = 0
+		for (let piece of valArray) { mpl[piece] = true;mplCount++}
+        let oldlen=0
+        while (oldlen != mplCount && mplCount < this.numPieces) {
+            oldlen = mplCount
+
+            this._map.forEach((val,idx) => {
+                if ( mpl[val]  ) {
+                    // check if this idx has conflicts
+                    let idxOffset = GroupMap.worldSteps[0]*translation[0] + GroupMap.worldSteps[1]*translation[1] + GroupMap.worldSteps[2]*translation[2]
+                    let targetIdx = idx*1 + idxOffset
+                    let targetVal = this._map.get(targetIdx)
+                    if (!(targetVal === undefined || mpl[targetVal])) {
+                        // conflict
+                        mpl[targetVal]=true;mplCount++;mplVal.push(targetVal) // fastest operation on earth
+                    }
+                }
+            })
+
+        }
+        return mplVal // valArray is not modified
+    }
+	*/
+	/*
+    remap(newval) {
+        this._map.forEach((val, idx) => {this._map.set(idx,newval)})
+        this._varimap.forEach((val, idx) => {this._varimap.set(idx,newval)})
+        return this
+    }
+	*/
+	/*
+	get pieceList() {
+        let pl = []
+		this._map.forEach((val, idx) => {if (!pl.includes(val)) pl.push(val) })
+		return pl
+//		return pl.sort((a,b)=>a-b)
+	}
+	*/
+    clone() {
+        return new GroupMap(this)
+    }
+}
+
+export class PieceMap {
+	_map // Map
+	_varimap // Map
+    static worldOrigin=100
+	// coordinates range is [-worldOrigin ..0.. +worldOrigin]
+    static worldMax=2*PieceMap.worldOrigin + 1
+    static worldOriginIndex = PieceMap.worldOrigin*(PieceMap.worldMax*PieceMap.worldMax + PieceMap.worldMax + 1)
+    static worldSteps = [1, PieceMap.worldMax, PieceMap.worldMax*PieceMap.worldMax]
+    static worldSize = PieceMap.worldMax*PieceMap.worldMax*PieceMap.worldMax
+    static hashToPoint(hash) {
+        let h = Number(hash)
+        let x = h % PieceMap.worldMax; h = (h - x)/PieceMap.worldMax
+        let y = h % PieceMap.worldMax; h = (h - y)/PieceMap.worldMax
+        let z = h
+        return [x-PieceMap.worldOrigin,y-PieceMap.worldOrigin,z-PieceMap.worldOrigin]
+    }
+    static pointToHash(point) {return (PieceMap.worldOriginIndex + PieceMap.worldMax*(point[2]*PieceMap.worldMax + point[1]) + point[0]) }
+    
+	constructor(source = {}, copy=true ) {
+		let { _map, _varimap} = source
+		if (copy) {
+			this._map = new Set(_map)
+			this._varimap = new Set(_varimap)
+		}
+		else {
+			this._map = _map
+			this._varimap = _varimap
+		}
+	}
+    get size() { 
+        let count=0; 
+        this._map.forEach(v => count++)
+        this._varimap.forEach(v => count++)
+        return count
+    }
+    get boundingBox() {
+        let bb = new BoundingBox()
+        bb.max = [-1*PieceMap.worldOrigin,-1*PieceMap.worldOrigin,-1*PieceMap.worldOrigin]
+        bb.min = [PieceMap.worldOrigin,PieceMap.worldOrigin,PieceMap.worldOrigin]
+		this._map.forEach((val, hash) => {
+            let p = PieceMap.hashToPoint(hash)
+            for (let dim of [0,1,2]) {
+                if (p[dim] < bb.min[dim]) bb.min[dim] = p[dim]
+                if (p[dim] > bb.max[dim]) bb.max[dim] = p[dim]
+            }
+		})
+        return bb
+    }
+	get dimension() {
+		let bb = this.boundingBox
+		return [bb.max[0] - bb.min[0],bb.max[1] - bb.min[1],bb.max[2] - bb.min[2]]
+	}
+	/*
+	get numPieces() {
+		let list = []
+		this._map.forEach(v => {if (!list.includes(v)) list.push(v)} )
+		return list.length
+	}
+	*/
+    setHash(hash,val) { this._map.add(hash) }
+    setPoint(p,val) { this.setHash(PieceMap.pointToHash(p),val) }
+	setStateHash(idx, s) {
+		if (s==0) { this._map.delete(idx);this._varimap.delete(idx) }
+		if (s==1) { this._map.add(idx,1);this._varimap.delete(idx) }
+		if (s==2) { delete this._map.delete(idx);this._varimap.add(idx,1) }
+	}
+	setStatePoint(p,s) { this.setStateHash(PieceMap.pointToHash(p),s)}
+	getStateHash(idx) { 
+		if (this._map.has(idx)) return 1
+		if (this._varimap.has(idx)) return 2
+		else return 0
+	}
+	getStatePoint(p) { return this.getStateHash(WorldMap.pointToHash(p)) }
+	clearHash(idx) { this._map.delete(idx);this._varimap.delete(idx)}
+    clearPoint(p) { this.clearHash(PieceMap.pointToHash(p)) }
+    hasHash(idx) { return (this._map.has(idx) || this._varimap.has(idx)) }
+    hasPoint(p) { return this.hasHash(PieceMap.pointToHash(p)) }
+    translate(translation) {
+		// update in place
+        let newMap = new Set()
+		this._map.forEach((val, hash) => {
+            let hashOffset = PieceMap.worldSteps[0]*translation[0] + PieceMap.worldSteps[1]*translation[1] + PieceMap.worldSteps[2]*translation[2]
+            let targetHash = hash*1 + hashOffset
+            newMap.add(targetHash)
+		})
+        this._map = newMap
+        return this
+    }
+	translateToClone(translation) {
+		// update to clone
+		// 
+        let newMap = new Set()
+		this._map.forEach((val, hash) => {
+            let hashOffset = PieceMap.worldSteps[0]*translation[0] + PieceMap.worldSteps[1]*translation[1] + PieceMap.worldSteps[2]*translation[2]
+            let targetHash = hash*1 + hashOffset
+            newMap.add(targetHash)
+		})
+		return new PieceMap({_map:newMap, _varimap: undefined}, false)
+    }
+	rotate(rotationIdx) {
+		let newMap = new Set()
+		this._map.forEach((val, hash) => {
+			let pos=PieceMap.hashToPoint(hash)
+			newMap.add(PieceMap.pointToHash(rotatePoint(pos, rotationIdx)))
+		})
+		this._map = newMap
+	}
+    clone() {
+        return new PieceMap(this)
+    }
+	getDLXmap(pieceMap) {
+		// This is specific for the Dancing Link algorithm (algoritm X) of Donald A. Knuth 
+		// See https://www.npmjs.com/package/dancing-links
+		// This transforms pieceMap into a constraint row in the matrix.
+		// return undefined if there is at least one voxel that covers a hole (should not happen)
+		// "This" worldmap is the reference (header row) to which the row should map.
+		// Since worldmap has been revamped into an "absolute" world of indices, there is no longer a need to
+		// use the intermediate remapping array. Just use the indices of worldmap for use in the constraints
+		let constraint = {data:{} , primaryRow : [], secondaryRow : []}
+		// setup a lookup array that maps the pixel hashes to their position in the dense array
+		let filledHashSequence=[]
+		this._map.forEach((val, hash) => { filledHashSequence.push(hash)})
+		let variHashSequence=[]
+		this._varimap.forEach((val, hash) => { variHashSequence.push(hash)})
+		// hack to make sure the sparse arrays have the correct "length"
+		constraint.primaryRow[filledHashSequence.length - 1] = 0
+		constraint.secondaryRow[variHashSequence.length - 1] = 0
+		// Loop over the indices of pieceMap, and check if it is present in this._map or this._varimap
+		// return undefined if it is present in neither
+
+		for (let hash of pieceMap._map) {
+			let fullidx = filledHashSequence.indexOf(hash)
+			let variidx = variHashSequence.indexOf(hash)
+			if ((fullidx == -1) && (variidx == -1 )) return undefined
+			if ( fullidx != -1) constraint.primaryRow[fullidx] = 1
+			else constraint.secondaryRow[variidx] = 1
+		}
+		return constraint
+	}
+}
 
 export class Puzzle {
 	gridType = {"@attributes" : { type : 0 }}

@@ -102,6 +102,7 @@ class testSet {
     deleteLast(idx) {
         return this.container.delete(idx)
     }
+    get(idx) { return true }
 }
 
 class testMap {
@@ -128,6 +129,7 @@ class testMap {
     delete(idx) {
         return this.container.delete(idx)
     }
+    get(idx) { return this.container.get(idx) }
 }
 
 
@@ -138,29 +140,32 @@ let m = new testMap()
 let o = new testObject()
 let sa = new testSparseArray()
 
-let containers = [m]
+let containers = [m, s]
 //let containers = [sa, a, s, m, o]
 
-const runLength=100000
+const mapLength=100
 const indexOffset=4000000
+const runLength=100000
 
 console.profile()
-for (let idx=runLength; idx >=0; idx--) {
+for (let idx=mapLength; idx >=0; idx--) {
     for (let c of containers) {
         c.add(idx,idx)
     }
 }
 
 for (let c of containers) {
-    for (let idx=runLength; idx >=1; idx--) {
-//        if (!c.has(idx)) throw(c.type + ".has(" +idx+ ") returned false")
-//        if (c.hasNot(-1*idx)) throw(c.type + ".hasNot(" +idx+ ") returned true")
+    for (let run=0;run<runLength;run++) {
+        for (let idx=mapLength; idx >=1; idx--) {
+            if (!c.has(idx)) throw(c.type + ".has(" +idx+ ") returned false")
+            if (c.hasNot(-1*idx)) throw(c.type + ".hasNot(" +idx+ ") returned true")
+            c.get(-1*idx)
+        }
+//        c.iterate()
     }
-    c.iterate()
-    c.iterate2()
 }
 
-for (let idx=runLength; idx >=1; idx--) {
+for (let idx=mapLength; idx >=1; idx--) {
     for (let c of containers) {
 //        c.delete(idx)
     }

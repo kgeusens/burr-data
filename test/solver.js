@@ -159,7 +159,10 @@ class Assembler {
         let rootNode = new Node()
         rootNode.setFromAssembly(this._assemblies[idx])
 //        rootNode.debug()
-        solve(rootNode)
+//        solve(rootNode)
+        for (let i=0;i<1000000;i++) {
+            let tempNode = new Node(rootNode)
+        }
         return
         let node1 = new Node(rootNode, [0], [0, -1, 0])
         let node2 = new Node(node1, [0], [0, -1, 0])
@@ -215,17 +218,16 @@ class Node {
             if (movingPieceList) {
                 this.movingPieceList = [...movingPieceList]
                 this.moveDirection = [...translation]
-                for (let idx in this.pieceList) {
-                    idx = Number(idx)
-                    if (movingPieceList.includes(idx)) {
-                        let offset = this.offsetList[idx]
-                        for (let i in offset) offset[i] += translation[i]
-                    }
-                }
+                movingPieceList.forEach((v, idx) =>{
+                    let offset = this.offsetList[v]
+                    for (let i in offset) offset[i] += translation[i]
+                })
             }
             let pl = this.positionList
             let firstPos = pl[0]
-            this.id = pl.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).flat().join(" ")
+            this.id = pl.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).reduce((res,v,i)=>{
+                return res + " " + v.join(" ")
+            }, "id")
         }
         else {
             this.#root = this
@@ -236,12 +238,15 @@ class Node {
     get positionList() { 
         return this.hotspotList.map((v, idx) => [v[0] + this.offsetList[idx][0],v[1] + this.offsetList[idx][1],v[2] + this.offsetList[idx][2]])
     }
-    getWorldmap() {
-        let resultWM = new DATA.WorldMap()
-        for (let idx in this.worldmapList) {
-            resultWM.place(this.worldmapList[idx].translateToClone(this.offsetList[idx]))
-        }
-        return resultWM
+    getWorldmaps() {
+        let resultWM = new DATA.GroupMap()
+        let pieceWM = []
+        this.worldmapList.forEach((v,idx) => {
+                let pwm = this.worldmapList[idx].translateToClone(this.offsetList[idx])
+                pieceWM[idx] = pwm
+                resultWM.place(pwm,idx)
+            })
+        return {resultWM:resultWM, pieceWM:pieceWM}
     }
     setFromAssembly(assembly) {
         // assembly is an array of pieces, it contains a property called "data" with info that we passed to the assembler.
@@ -251,9 +256,8 @@ class Node {
         this.hotspotList = assembly.map(v => v.data.hotspot)
         this.offsetList = assembly.map(v => [v.data.offset[0], v.data.offset[1], v.data.offset[2]])
         this.instances = assembly.map(v => v.data.instance)
-        // KG : check if we need to clone.
-        // I think not since these instances are private to the assembler so we can safely remap
-        this.worldmapList = this.instances.map((v,idx) => v.worldmap.remap(idx))
+        // KG : worldmaps of pieces no longer need to remap. The remapping is done when the GroupMap is created.
+        this.worldmapList = this.instances.map((v,idx) => v.worldmap)
         // ID = the concatenation of the positionList, but normalized to the first element at [0,0,0]
         let firstPos = this.positionList[0]
         this.id = this.positionList.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).flat().join(" ")
@@ -261,7 +265,7 @@ class Node {
     debug() {
         for (let idx in this.worldmapList) {
             console.log("debug node: idx", idx)
-            this.worldmapList[idx].translateToClone(this.offsetList[idx])._map.forEach((val, hash) => console.log(hash, DATA.WorldMap.hashToPoint(hash)))
+            this.worldmapList[idx].translateToClone(this.offsetList[idx])._map.forEach((val, hash) => console.log(hash, DATA.GroupMap.hashToPoint(hash)))
         }
     }
 }
@@ -294,11 +298,29 @@ for performance reasons, calculating mpl and the boundingBoxes can be done in 1 
 */
 
 function prepare(node) {
-    function getMovingPiecelist(idxList, translation) {
-        return wm.getMovingPieces(idxList, translation)
+    function getMovingPiecelist(valArray, translation, rwm, pwmList) {
+		let mpl = []
+		let mplVal = [...valArray]
+        let hashOffset = DATA.GroupMap.worldSteps[0]*translation[0] + DATA.GroupMap.worldSteps[1]*translation[1] + DATA.GroupMap.worldSteps[2]*translation[2]
+		for (let piece of valArray) { mpl[piece] = true}
+        // now loop over mplval and append conflicting pieces if not yet in the list. One iteration should do the trick
+        for (let i=0;i<mplVal.length;i++) {
+            let pwm = pwmList[mplVal[i]] // the worldmap of the piece
+            pwm._map.forEach((val, hash) => {
+                // check
+                let targetHash = hash*1 + hashOffset
+                let targetVal = rwm.getHash(targetHash)
+                if (!(targetVal === undefined || mpl[targetVal])) {
+                    // conflict
+                    mpl[targetVal]=true;mplVal.push(targetVal) // fastest operation on earth
+                }
+            })
+            if (mplVal.length == node.pieceList.length) break
+        }
+        return mplVal // valArray is not modified
     }
-    function canMove(idxList, translation) {
-        return wm.canMove(idxList,translation)
+    function canMove(idxList, translation, rwm, pwmList) {
+        return rwm.canMove(idxList,translation)
     }
     function getMaxMoves(mpl, dim=0, step) {
         let maxmpl = 0
@@ -320,15 +342,17 @@ function prepare(node) {
         if (step == 1) return maxrest - minmpl
         else return maxmpl - minrest
     }
+    
     let moveslist = []
-    let wm = node.getWorldmap()
+    let {resultWM, pieceWM} = node.getWorldmaps()
     let mplCache = [] // 0
+//    console.log("prepare")
     for (let pidx in node.pieceList) { // 1
         for (let dim of [0,1,2]) {
             for (let minstep of [1, -1]) {
                 let dir = [0,0,0]
                 dir[dim] = minstep
-                let mpl = getMovingPiecelist([pidx*1], dir) // a
+                let mpl = getMovingPiecelist([pidx*1], dir, resultWM, pieceWM) // a
                 if (mpl.length == node.pieceList.length) continue // i
                 let newNode = new Node(node, mpl, dir)
                 if (mplCache.includes(newNode.id)) continue // i
@@ -340,8 +364,8 @@ function prepare(node) {
                 console.log("mpl", mpl, "dir", dir)
                 while (move <= maxMoves) {
                     dir[dim]=minstep*move
-                    if (canMove(mpl, dir)) {
-                        console.log("mpl", mpl, "dir", dir)
+                    if (canMove(mpl, dir, resultWM, pieceWM)) {
+//                        console.log("mpl", mpl, "dir", dir)
                         let newNode = new Node(node, mpl, dir)
                         if (mplCache.includes(newNode.id)) break // i
                         mplCache.push(newNode.id)
@@ -402,8 +426,8 @@ function solve(startNode) {
         // if we get here, we have exhausted this layer of the search tree
         // move to the next layer
         if (openlist[curListFront].length == 0) {
-            console.log("Finished Level", level++)
-            console.log(closedCache[newFront])
+//            console.log("Finished Level", level++)
+//            console.log(closedCache[newFront])
             curListFront = 1 - curListFront;
             newListFront = 1 - newListFront;
             closed[oldFront]=[]
@@ -438,11 +462,11 @@ const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 let a = new Assembler(theXMPuzzle)
 let count="count not calculated"
 //a.assemble()
+count = a.assemble()
 console.profile()
 //count=a.getDLXmatrix().length
-    count = a.assemble()
-    a.debug(240)
-//    a.solve()
+    a.solve()
+//    a.debug(240)
 //    profileRun(a)
 console.profileEnd()
 console.log(count)

@@ -159,7 +159,10 @@ class Assembler {
         let rootNode = new Node()
         rootNode.setFromAssembly(this._assemblies[idx])
 //        rootNode.debug()
-        solve(rootNode)
+//        solve(rootNode)
+        for (let i=0;i<1000000;i++) {
+            let tempNode = new Node(rootNode)
+        }
         return
         let node1 = new Node(rootNode, [0], [0, -1, 0])
         let node2 = new Node(node1, [0], [0, -1, 0])
@@ -222,7 +225,9 @@ class Node {
             }
             let pl = this.positionList
             let firstPos = pl[0]
-            this.id = pl.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).flat().join(" ")
+            this.id = pl.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).reduce((res,v,i)=>{
+                return res + " " + v.join(" ")
+            }, "id")
         }
         else {
             this.#root = this
@@ -300,7 +305,6 @@ function prepare(node) {
 		let mplCount = 0
         let hashOffset = DATA.WorldMap.worldSteps[0]*translation[0] + DATA.WorldMap.worldSteps[1]*translation[1] + DATA.WorldMap.worldSteps[2]*translation[2]
 		for (let piece of valArray) { mpl[piece] = true;mplCount++}
-        let oldlen=0
         // now loop over mplval and append conflicting pieces if not yet in the list. One iteration should do the trick
         for (let i=0;i<mplVal.length;i++) {
             let pwm = pwmList[mplVal[i]] // the worldmap of the piece
@@ -313,6 +317,7 @@ function prepare(node) {
                     mpl[targetVal]=true;mplCount++;mplVal.push(targetVal) // fastest operation on earth
                 }
             })
+            if (mplVal.length == node.pieceList.length) break
         }
         return mplVal // valArray is not modified
     }
@@ -325,8 +330,9 @@ function prepare(node) {
         let maxrest = 0
         let minrest = 30000
         for (let idx in node.pieceList) {
-            let max = node.instances[idx].boundingBox.max[dim] + node.offsetList[idx][dim]
-            let min = node.instances[idx].boundingBox.min[dim] + node.offsetList[idx][dim]
+            let bb=node.instances[idx].boundingBox
+            let max = bb.max[dim] + node.offsetList[idx][dim]
+            let min = bb.min[dim] + node.offsetList[idx][dim]
             if (idx in mpl) {
                 if (max>maxmpl) maxmpl = max
                 if (min<minmpl) minmpl = min
@@ -458,9 +464,9 @@ const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 let a = new Assembler(theXMPuzzle)
 let count="count not calculated"
 //a.assemble()
+count = a.assemble()
 console.profile()
 //count=a.getDLXmatrix().length
-    count = a.assemble()
     a.solve()
 //    a.debug(240)
 //    profileRun(a)

@@ -159,7 +159,7 @@ class Assembler {
         let rootNode = new Node()
         rootNode.setFromAssembly(this._assemblies[idx])
 //        rootNode.debug()
-        prepare(rootNode)
+        solve(rootNode)
         return
         let node1 = new Node(rootNode, [0], [0, -1, 0])
         let node2 = new Node(node1, [0], [0, -1, 0])
@@ -337,11 +337,11 @@ function prepare(node) {
                 // ii.
                 let maxMoves = getMaxMoves(mpl, dim, minstep)
                 let move = 2
-//                console.log("mpl", mpl, "dir", dir)
+                console.log("mpl", mpl, "dir", dir)
                 while (move <= maxMoves) {
                     dir[dim]=minstep*move
                     if (canMove(mpl, dir)) {
-//                        console.log("mpl", mpl, "dir", dir)
+                        console.log("mpl", mpl, "dir", dir)
                         let newNode = new Node(node, mpl, dir)
                         if (mplCache.includes(newNode.id)) break // i
                         mplCache.push(newNode.id)
@@ -402,7 +402,8 @@ function solve(startNode) {
         // if we get here, we have exhausted this layer of the search tree
         // move to the next layer
         if (openlist[curListFront].length == 0) {
-//            console.log("Finished Level", level++)
+            console.log("Finished Level", level++)
+            console.log(closedCache[newFront])
             curListFront = 1 - curListFront;
             newListFront = 1 - newListFront;
             closed[oldFront]=[]
@@ -440,7 +441,8 @@ let count="count not calculated"
 console.profile()
 //count=a.getDLXmatrix().length
     count = a.assemble()
-    a.solve()
+    a.debug(240)
+//    a.solve()
 //    profileRun(a)
 console.profileEnd()
 console.log(count)

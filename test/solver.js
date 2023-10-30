@@ -306,7 +306,7 @@ function prepare(node) {
         let oldlen=0
         // now loop over mplval and append conflicting pieces if not yet in the list. One iteration should do the trick
         for (let i=0;i<mplVal.length;i++) {
-            let pwm = pwmList[i] // the worldmap of the piece
+            let pwm = pwmList[mplVal[i]] // the worldmap of the piece
             pwm._map.forEach((val, hash) => {
                 // check
                 let targetHash = hash*1 + hashOffset
@@ -345,7 +345,7 @@ function prepare(node) {
     let moveslist = []
     let {resultWM, pieceWM} = node.getWorldmaps()
     let mplCache = [] // 0
-    console.log("prepare")
+//    console.log("prepare")
     for (let pidx in node.pieceList) { // 1
         for (let dim of [0,1,2]) {
             for (let minstep of [1, -1]) {
@@ -425,8 +425,8 @@ function solve(startNode) {
         // if we get here, we have exhausted this layer of the search tree
         // move to the next layer
         if (openlist[curListFront].length == 0) {
-            console.log("Finished Level", level++)
-            console.log(closedCache[newFront])
+//            console.log("Finished Level", level++)
+//            console.log(closedCache[newFront])
             curListFront = 1 - curListFront;
             newListFront = 1 - newListFront;
             closed[oldFront]=[]
@@ -464,8 +464,8 @@ let count="count not calculated"
 console.profile()
 //count=a.getDLXmatrix().length
     count = a.assemble()
-//    a.solve()
-    a.debug(240)
+    a.solve()
+//    a.debug(240)
 //    profileRun(a)
 console.profileEnd()
 console.log(count)

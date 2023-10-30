@@ -239,12 +239,12 @@ class Node {
         return this.hotspotList.map((v, idx) => [v[0] + this.offsetList[idx][0],v[1] + this.offsetList[idx][1],v[2] + this.offsetList[idx][2]])
     }
     getWorldmaps() {
-        let resultWM = new DATA.WorldMap()
+        let resultWM = new DATA.GroupMap()
         let pieceWM = []
         this.worldmapList.forEach((v,idx) => {
                 let pwm = this.worldmapList[idx].translateToClone(this.offsetList[idx])
                 pieceWM[idx] = pwm
-                resultWM.place(pwm)
+                resultWM.place(pwm,idx)
             })
         return {resultWM:resultWM, pieceWM:pieceWM}
     }
@@ -256,9 +256,8 @@ class Node {
         this.hotspotList = assembly.map(v => v.data.hotspot)
         this.offsetList = assembly.map(v => [v.data.offset[0], v.data.offset[1], v.data.offset[2]])
         this.instances = assembly.map(v => v.data.instance)
-        // KG : check if we need to clone.
-        // I think not since these instances are private to the assembler so we can safely remap
-        this.worldmapList = this.instances.map((v,idx) => v.worldmap.remap(idx))
+        // KG : worldmaps of pieces no longer need to remap. The remapping is done when the GroupMap is created.
+        this.worldmapList = this.instances.map((v,idx) => v.worldmap)
         // ID = the concatenation of the positionList, but normalized to the first element at [0,0,0]
         let firstPos = this.positionList[0]
         this.id = this.positionList.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).flat().join(" ")
@@ -266,7 +265,7 @@ class Node {
     debug() {
         for (let idx in this.worldmapList) {
             console.log("debug node: idx", idx)
-            this.worldmapList[idx].translateToClone(this.offsetList[idx])._map.forEach((val, hash) => console.log(hash, DATA.WorldMap.hashToPoint(hash)))
+            this.worldmapList[idx].translateToClone(this.offsetList[idx])._map.forEach((val, hash) => console.log(hash, DATA.GroupMap.hashToPoint(hash)))
         }
     }
 }
@@ -302,7 +301,7 @@ function prepare(node) {
     function getMovingPiecelist(valArray, translation, rwm, pwmList) {
 		let mpl = []
 		let mplVal = [...valArray]
-        let hashOffset = DATA.WorldMap.worldSteps[0]*translation[0] + DATA.WorldMap.worldSteps[1]*translation[1] + DATA.WorldMap.worldSteps[2]*translation[2]
+        let hashOffset = DATA.GroupMap.worldSteps[0]*translation[0] + DATA.GroupMap.worldSteps[1]*translation[1] + DATA.GroupMap.worldSteps[2]*translation[2]
 		for (let piece of valArray) { mpl[piece] = true}
         // now loop over mplval and append conflicting pieces if not yet in the list. One iteration should do the trick
         for (let i=0;i<mplVal.length;i++) {
@@ -310,7 +309,7 @@ function prepare(node) {
             pwm._map.forEach((val, hash) => {
                 // check
                 let targetHash = hash*1 + hashOffset
-                let targetVal = rwm._map.get(targetHash)
+                let targetVal = rwm.getHash(targetHash)
                 if (!(targetVal === undefined || mpl[targetVal])) {
                     // conflict
                     mpl[targetVal]=true;mplVal.push(targetVal) // fastest operation on earth

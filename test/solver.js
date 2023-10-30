@@ -215,13 +215,10 @@ class Node {
             if (movingPieceList) {
                 this.movingPieceList = [...movingPieceList]
                 this.moveDirection = [...translation]
-                for (let idx in this.pieceList) {
-                    idx = Number(idx)
-                    if (movingPieceList.includes(idx)) {
-                        let offset = this.offsetList[idx]
-                        for (let i in offset) offset[i] += translation[i]
-                    }
-                }
+                movingPieceList.forEach((v, idx) =>{
+                    let offset = this.offsetList[v]
+                    for (let i in offset) offset[i] += translation[i]
+                })
             }
             let pl = this.positionList
             let firstPos = pl[0]

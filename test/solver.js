@@ -15,7 +15,6 @@ class Assembler {
     get puzzleVoxels() { return this.puzzle.shapes.voxel}
     get problemShapes() { return this.problem.shapes.shape}
     get resultVoxel() { return this.puzzleVoxels[this.problem.result.id]}
-    get problemVoxels() {}
     constructor(puzzle, problemIdx = 0) {
         this._puzzle = puzzle
         this._problemIndex = problemIdx
@@ -270,6 +269,131 @@ class Node {
     }
 }
 
+class movementCache {
+    _puzzle
+    _problemIndex
+    _instanceCache = {}
+    _movementCache = {}
+    _shapeMap
+
+    get puzzle() { return this._puzzle }
+    get problem() { return this.puzzle.problems.problem[this._problemIndex]}
+    get puzzleVoxels() { return this.puzzle.shapes.voxel}
+    get problemShapes() { return this.problem.shapes.shape}
+    get resultVoxel() { return this.puzzleVoxels[this.problem.result.id]}
+    constructor(puzzle, problemIdx = 0) {
+        this._puzzle = puzzle
+        this._problemIndex = problemIdx
+        this._shapeMap=this.problem.shapeMap
+    }
+
+    getShapeInstance(id, rot) {
+        // id is the index into shapeMap 
+        let hash=id + " " + rot
+        let instance = this._instanceCache[hash]
+        if (!instance) {
+            console.log("miss")
+            instance = new DATA.VoxelInstance({ voxel: this.puzzleVoxels[this._shapeMap[id]], rotation: rot})
+            this._instanceCache[hash]=instance
+        }
+        return instance
+    }
+    getMaxValues(id1, rot1, id2, rot2, dx, dy, dz, direction = 1) {
+        // calculates and caches how far piece1 can move in positive directions before hitting piece2
+        // [dx, dy, dz] is the relative offset of piece2 compared to piece1
+        // axiom: (p1 -> p2) = (p2 -> p1) in opposite direction
+        // Means when we calculate the positive direction of p1 -> p2, we also know the negative direction of p2 -> p1
+        // therefor we only cache positive directions.
+        // If ever you need to lookup a negative direction, just swap the positions of the 2 pieces before lookup
+        // For convenience, you can specify "direction" and we will do the swapped lookup for you ;)
+        if (direction != 1) {
+            dx = -1*dx;dy=-1*dy;dz=-1*dz
+            let id=id1;id1=id2;id2=id
+            let rot=rot1;rot1=rot2;rot2=rot
+        }
+        let hash = id1 + " " + rot1 + " " + id2 + " " + rot2 + " " + dx + " " + dy + " " + dz
+        let s1 = this.getShapeInstance(id1, rot1)
+        let s2 = this.getShapeInstance(id2, rot2)
+        let moves = this._movementCache[hash]
+        if (!moves) {
+            console.log("miss")
+            let intersection = new DATA.BoundingBox()
+            let union = new DATA.BoundingBox()
+            let bb1 = s1.boundingBox
+            let bb2 = s2.boundingBox
+            let mx=32000; let my=32000; let mz=32000
+            intersection.min[0] = Math.max(bb1.min[0], bb2.min[0] + dx)
+            intersection.min[1] = Math.max(bb1.min[1], bb2.min[1] + dy)
+            intersection.min[2] = Math.max(bb1.min[2], bb2.min[2] + dz)
+            intersection.max[0] = Math.min(bb1.max[0], bb2.max[0] + dx)
+            intersection.max[1] = Math.min(bb1.max[1], bb2.max[1] + dy)
+            intersection.max[2] = Math.min(bb1.max[2], bb2.max[2] + dz)
+            union.min[0] = Math.min(bb1.min[0], bb2.min[0] + dx)
+            union.min[1] = Math.min(bb1.min[1], bb2.min[1] + dy)
+            union.min[2] = Math.min(bb1.min[2], bb2.min[2] + dz)
+            union.max[0] = Math.max(bb1.max[0], bb2.max[0] + dx)
+            union.max[1] = Math.max(bb1.max[1], bb2.max[1] + dy)
+            union.max[2] = Math.max(bb1.max[2], bb2.max[2] + dz)
+
+            for (let y = intersection.min[1]; y<=intersection.max[1];y++) {
+                for (let z = intersection.min[2]; z<=intersection.max[2];z++) {
+                    let gap = 32000
+                    for (let x = union.min[0]; x<=union.max[0];x++) {
+                        if (s1.worldmap.hasPoint([x, y, z])) { // s1 is filled
+                            gap = 0
+                        }
+                        else 
+                        if (s2.worldmap.hasPoint([x-dx, y-dy,z-dz])) { // s1 is empty, s2 is filled
+                            if (gap < mx) mx = gap
+                        }
+                        else { // s1 is empty, s2 is empty
+                            gap++
+                        }
+                    }
+                }
+            }
+            for (let x = intersection.min[0]; x<=intersection.max[0];x++) {
+                for (let z = intersection.min[2]; z<=intersection.max[2];z++) {
+                    let gap = 32000
+                    for (let y = union.min[1]; y<=union.max[1];y++) {
+                        if (s1.worldmap.hasPoint([x, y, z])) { // s1 is filled
+                            gap = 0
+                        }
+                        else 
+                        if (s2.worldmap.hasPoint([x-dx, y-dy,z-dz])) { // s1 is empty, s2 is filled
+                            if (gap < my) my = gap
+                        }
+                        else { // s1 is empty, s2 is empty
+                            gap++
+                        }
+                    }
+                }
+            }
+            for (let x = intersection.min[0]; x<=intersection.max[0];x++) {
+                for (let y = intersection.min[1]; y<=intersection.max[1];y++) {
+                    let gap = 32000
+                    for (let z = union.min[2]; z<=union.max[2];z++) {
+                        if (s1.worldmap.hasPoint([x, y, z])) { // s1 is filled
+                            gap = 0
+                        }
+                        else 
+                        if (s2.worldmap.hasPoint([x-dx, y-dy,z-dz])) { // s1 is empty, s2 is filled
+                            if (gap < mz) mz = gap
+                        }
+                        else { // s1 is empty, s2 is empty
+                            gap++
+                        }
+                    }
+                }
+            }
+            moves = [mx, my, mz]
+            this._movementCache[hash] = moves
+        }
+        else console.log("hit") // KG : DEBUG
+        return moves
+    }
+}
+
 /*
 A node is an item in the searchtree, and represents a number of pieces and their positions.
 PREPARE(node) : 
@@ -460,16 +584,19 @@ const xmpuzzleFile = readFileSync("misusedKey.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 
 let a = new Assembler(theXMPuzzle)
+let cache = new movementCache(theXMPuzzle)
+console.log(cache.getMaxValues(0,0,6,12,3,0,0))
+console.log(cache.getMaxValues(6,12,0,0,-3,0,0,-1))
 let count="count not calculated"
-//a.assemble()
+
 count = a.assemble()
 console.profile()
-//count=a.getDLXmatrix().length
-    a.solve()
+//    a.solve()
 //    a.debug(240)
 //    profileRun(a)
 console.profileEnd()
 console.log(count)
+
 //a.checkAssembly()
 //a.debug()
 //a.solve()

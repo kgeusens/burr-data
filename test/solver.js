@@ -7,17 +7,10 @@ import { log } from 'console'
 // https://billcutlerpuzzles.com/docs/CA6PB/analyzing.html
 
 class Assembler {
-    _puzzle
-    _problemIndex
+    _cache
     _assemblies=null
-    get puzzle() { return this._puzzle }
-    get problem() { return this.puzzle.problems.problem[this._problemIndex]}
-    get puzzleVoxels() { return this.puzzle.shapes.voxel}
-    get problemShapes() { return this.problem.shapes.shape}
-    get resultVoxel() { return this.puzzleVoxels[this.problem.result.id]}
-    constructor(puzzle, problemIdx = 0) {
-        this._puzzle = puzzle
-        this._problemIndex = problemIdx
+    constructor(cache) {
+        this._cache = cache
     }
     calcRotations() {
         let point = [ 1, 2, 3]
@@ -77,14 +70,16 @@ class Assembler {
     getDLXmatrix() {
         this._assemblies = null
         let r = new DATA.VoxelInstance(
-            { voxel:this.resultVoxel } )
+            { voxel:this._cache.resultVoxel } )
         let rbb = r.boundingBox
         let matrix = []
-        for (let psid in this.problemShapes) { // problemshapes
+//        for (let psid in this.problemShapes) { // problemshapes
+        for (let psid in this._cache._shapeMap) { // problemshapes //KG
             psid = Number(psid)
             for (let rotidx = 0; rotidx<24;rotidx++) { // 24 rotations each
 //                console.log("psid", psid, "rot", rotidx)
-                let rotatedInstance = new DATA.VoxelInstance({ voxel: this.puzzleVoxels[this.problemShapes[psid].id], rotation: rotidx})
+//                let rotatedInstance = new DATA.VoxelInstance({ voxel: this.puzzleVoxels[this.problemShapes[psid].id], rotation: rotidx})
+                let rotatedInstance = this._cache.getShapeInstance(psid, rotidx) // KG
                 let pbb = rotatedInstance.boundingBox
                 for (let x = rbb.min[0] - pbb.min[0]; x <= rbb.max[0] - pbb.max[0];x++) {
                     for (let y = rbb.min[1] - pbb.min[1]; y <= rbb.max[1] - pbb.max[1];y++) {
@@ -96,10 +91,11 @@ class Assembler {
                             let map = r.worldmap.getDLXmap(wm)
 //                            let map = null
                             if (map) {
-                                map.data={id:Number(this.problemShapes[psid].id), rotation:rotidx, hotspot:rotatedInstance.hotspot, offset:offset, instance: rotatedInstance}
+//                                map.data={id:Number(this.problemShapes[psid].id), rotation:rotidx, hotspot:rotatedInstance.hotspot, offset:offset, instance: rotatedInstance} // KG
+                                map.data={id:psid, rotation:rotidx, hotspot:rotatedInstance.hotspot, offset:offset}
                                 // we need to add secondary constraints for the pieces (based on psid)
                                 let mlen=map.secondaryRow.length
-                                map.secondaryRow[mlen+this.problemShapes.length-1]=0
+                                map.secondaryRow[mlen+this._cache._shapeMap.length-1]=0
                                 map.secondaryRow[mlen+psid]=1
                                 matrix.push(map)
                             }
@@ -112,7 +108,7 @@ class Assembler {
     }
     assemble() {
         this._assemblies = DLX.findAll(this.getDLXmatrix())
-        return this._assemblies.length
+        return this._assemblies
     }
     getAssembly(idx) {
         let rootNode = new Node()
@@ -292,7 +288,6 @@ class movementCache {
         let hash=id + " " + rot
         let instance = this._instanceCache[hash]
         if (!instance) {
-            console.log("miss")
             instance = new DATA.VoxelInstance({ voxel: this.puzzleVoxels[this._shapeMap[id]], rotation: rot})
             this._instanceCache[hash]=instance
         }
@@ -316,7 +311,6 @@ class movementCache {
         let s2 = this.getShapeInstance(id2, rot2)
         let moves = this._movementCache[hash]
         if (!moves) {
-            console.log("miss")
             let intersection = new DATA.BoundingBox()
             let union = new DATA.BoundingBox()
             let bb1 = s1.boundingBox
@@ -389,7 +383,6 @@ class movementCache {
             moves = [mx, my, mz]
             this._movementCache[hash] = moves
         }
-        else console.log("hit") // KG : DEBUG
         return moves
     }
 }
@@ -566,6 +559,35 @@ function solve(startNode) {
     return null
 }
 
+class Solver {
+    _puzzle
+    _problemIndex
+    _assembler
+    _cache
+    constructor(puzzle, problemIdx = 0) {
+        this._puzzle = puzzle
+        this._problemIndex = problemIdx
+        this._cache = new movementCache(puzzle, problemIdx)
+        this._assembler = new Assembler(this._cache)
+    }
+    get assemblies() {
+        if (!this._assembler.assemblies) return this._assembler.assemble()
+        else return this._assembler.assemblies
+    }
+    solve() {
+    }
+    getCutlerMatrix(node) {
+        let array = []
+        numDirections = 3
+        numRow = numDirections * node.pieceList.length
+        for (let j in node.pieceList) { 
+            for (let i in node.pieceList) {
+                array.push(cache.getMaxValues())
+            }
+        }
+    }
+}
+
 function profileRun(assembler)
 {
     let ri = new DATA.VoxelInstance( { voxel:a.resultVoxel } )
@@ -583,20 +605,9 @@ function profileRun(assembler)
 const xmpuzzleFile = readFileSync("misusedKey.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 
-let a = new Assembler(theXMPuzzle)
-let cache = new movementCache(theXMPuzzle)
-console.log(cache.getMaxValues(0,0,6,12,3,0,0))
-console.log(cache.getMaxValues(6,12,0,0,-3,0,0,-1))
-let count="count not calculated"
+let s = new Solver(theXMPuzzle)
 
-count = a.assemble()
 console.profile()
-//    a.solve()
-//    a.debug(240)
-//    profileRun(a)
+    console.log(s.assemblies.length)
 console.profileEnd()
-console.log(count)
 
-//a.checkAssembly()
-//a.debug()
-//a.solve()

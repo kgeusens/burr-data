@@ -686,10 +686,16 @@ class Solver {
                 }
                 // we now have the results for piece k in dimension dim
                 let offset = [0,0,0]
-                if (vMoveRow) { 
-                    offset[dim] = -1*vMoveRow
-                    movelist.push({step: offset, mpl: pRow})
+                if (vMoveRow) {
+                    // we have a partition
                     for (let p of pRow) assigned[p] = true
+                    // only add it to movelist if it is not longer than half of the pieces (eg 3 out of 6, or 3 out of 7, but not 4)
+                    if (pRow.length <= Math.floor(node.pieceList.length/2)) {
+                        for (let step = 1;step <= vMoveRow;step++) {
+                            offset[dim] = -1*step
+                            movelist.push({step: [...offset], mpl: pRow})
+                        }
+                    }
                 }
             }
         }
@@ -713,9 +719,15 @@ class Solver {
                 let offset = [0,0,0]
                 
                 if (vMoveCol) { 
-                    offset[dim] = vMoveCol
-                    movelist.push({step: offset, mpl: pCol})
+                    // we have a partition
                     for (let p of pCol) assigned[p] = true
+                    // only add it to movelist if it is not longer than half of the pieces (eg 3 out of 6, or 3 out of 7, but not 4)
+                    if (pCol.length <= Math.floor(node.pieceList.length/2)) {
+                        for (let step = 1;step <= vMoveCol;step++) {
+                            offset[dim] = step
+                            movelist.push({step: [...offset], mpl: pCol})
+                        }
+                    }
                 }
             }
         }

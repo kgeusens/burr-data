@@ -96,7 +96,7 @@ class Assembler {
 //                            let map = null
                             if (map) {
 //                                map.data={id:Number(this.problemShapes[psid].id), rotation:rotidx, hotspot:rotatedInstance.hotspot, offset:offset, instance: rotatedInstance} // KG
-                                map.data={id:psid, rotation:rotidx, hotspot:rotatedInstance.hotspot, offset:offset}
+                                map.data={id:psid, rotation:rotidx, hotspot:rotatedInstance.hotspot, offset:offset, instance: rotatedInstance}
                                 // we need to add secondary constraints for the pieces (based on psid)
                                 let mlen=map.secondaryRow.length
                                 map.secondaryRow[mlen+this._cache._shapeMap.length-1]=0
@@ -150,15 +150,15 @@ class Assembler {
         for (let idx in this._assemblies) {
             console.log("solving assembly", idx)
             let rootNode = new Node()
-            rootNode.setFromAssembly(this._assemblies[idx])
+            rootNode.setFromAssembly(this.assemblies[idx])
             solve(rootNode)
         }
     }
     debug(idx=0) {
         let rootNode = new Node()
-        rootNode.setFromAssembly(this._assemblies[idx])
+        rootNode.setFromAssembly(this.assemblies[idx])
 //        rootNode.debug()
-//        solve(rootNode)
+        solve(rootNode)
         for (let i=0;i<1000000;i++) {
             let tempNode = new Node(rootNode)
         }
@@ -188,11 +188,11 @@ class Node {
     offsetList = [] // changes throughout the searchtree.
 //    positionList = [] // calculated based on hotspot and offset
 //    instances = [] // static VoxelInxstances of the rotated voxels (boundingBox starting at [0,0,0])
-//    worldmapList = [] // static worldmaps of the instances, remapped to its index in this list. eg worldmapList[2] is remapped to 2
+    worldmapList = [] // static worldmaps of the instances, remapped to its index in this list. eg worldmapList[2] is remapped to 2 // REMOVE WHEN READY
     id // (key) id = the concatenation of positionList, but normalized to the first element at [0,0,0]
     #parent=null
     #root=null
-    isSeparation = false
+    isSeparation
     movingPieceList
     moveDirection
     // Pass a single solution from the assembler.
@@ -204,15 +204,16 @@ class Node {
     // position : Sum of offset and hotspot. The full transformation for a voxel is determined by (rotation, position)
     // worldmap : worldmap of the instance. Still need to translate over offset to reflect correct state in solution.
     // parent : undefined by default, but needed when this is used as a node in the solution tree. Points back to the previous step.
-    constructor(parentObject, movingPieceList, translation = [0,0,0]) {
+    constructor(parentObject, movingPieceList, translation = [0,0,0], separation = false) {
         if (parentObject) {
             this.#root = parentObject.root
             this.#parent = parentObject
             this.pieceList = parentObject.pieceList
             this.rotationList = parentObject.rotationList
             this.hotspotList = parentObject.hotspotList
-//            this.instances = parentObject.instances
-//            this.worldmapList = parentObject.worldmapList //
+            this.isSeparation = separation
+            this.instances = parentObject.instances // REMOVE
+            this.worldmapList = parentObject.worldmapList // REMOVE
             for (let idx in parentObject.offsetList) this.offsetList[idx] = [...parentObject.offsetList[idx]]
             if (movingPieceList) {
                 this.movingPieceList = [...movingPieceList]
@@ -254,12 +255,12 @@ class Node {
         this.rotationList = assembly.map(v => Number(v.data.rotation))
         this.hotspotList = assembly.map(v => v.data.hotspot)
         this.offsetList = assembly.map(v => [v.data.offset[0], v.data.offset[1], v.data.offset[2]])
-//        this.instances = assembly.map(v => v.data.instance)
+        this.instances = assembly.map(v => v.data.instance)
         // KG : worldmaps of pieces no longer need to remap. The remapping is done when the GroupMap is created.
-//        this.worldmapList = this.instances.map((v,idx) => v.worldmap)
+        this.worldmapList = this.instances.map((v,idx) => v.worldmap)
         // ID = the concatenation of the positionList, but normalized to the first element at [0,0,0]
         let firstPos = this.positionList[0]
-        this.id = this.positionList.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).flat().join(" ")
+        this.id = "id " + this.positionList.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).flat().join(" ")
     }
     debug() {
         for (let idx in this.worldmapList) {
@@ -387,7 +388,7 @@ class movementCache {
             moves = [mx, my, mz]
             this._movementCache[hash] = moves
         }
-        return moves
+        return [moves[0], moves[1], moves[2]]
     }
 }
 
@@ -467,7 +468,7 @@ function prepare(node) {
     let moveslist = []
     let {resultWM, pieceWM} = node.getWorldmaps()
     let mplCache = [] // 0
-//    console.log("prepare")
+    console.log("prepare", node.movingPieceList, node.moveDirection)
     for (let pidx in node.pieceList) { // 1
         for (let dim of [0,1,2]) {
             for (let minstep of [1, -1]) {
@@ -482,11 +483,11 @@ function prepare(node) {
                 // ii.
                 let maxMoves = getMaxMoves(mpl, dim, minstep)
                 let move = 2
-//                console.log("mpl", mpl, "dir", dir)
+                console.log("mpl", mpl, "dir", dir)
                 while (move <= maxMoves) {
                     dir[dim]=minstep*move
                     if (canMove(mpl, dir, resultWM, pieceWM)) {
-//                        console.log("mpl", mpl, "dir", dir)
+                        console.log("mpl", mpl, "dir", dir)
                         let newNode = new Node(node, mpl, dir)
                         if (mplCache.includes(newNode.id)) break // i
                         mplCache.push(newNode.id)
@@ -576,6 +577,7 @@ class Solver {
     }
     get assembler() { return this._assembler }
     getMovevementList(node) {
+        // needs the movementcache
         // the shapeid can be found in the content of the pieceList
         let matrix = []
         let numDirections = 3
@@ -588,11 +590,11 @@ class Solver {
                     let s1 = node.pieceList[i]; let r1 = node.rotationList[i];let o1 = node.offsetList[i]
                     let s2 = node.pieceList[j]; let r2 = node.rotationList[j];let o2 = node.offsetList[j]
                     let maxMoves = this._cache.getMaxValues(s1, r1, s2, r2, node.offsetList[j][0] - node.offsetList[i][0], node.offsetList[j][1] - node.offsetList[i][1], node.offsetList[j][2] - node.offsetList[i][2])
-//                    console.log(s1, "=>", s2, maxMoves)
                     matrix.push(maxMoves)
                 }
             }
         }
+//        console.log(matrix)
         // Phase 2: algorithm from Bill Cutler
         let again = true
         while (again) {
@@ -618,6 +620,7 @@ class Solver {
                 }
             }
         }
+//        console.log(matrix)
         // Continue to calculate the maxMoves before hitting anything else
         //
         /*
@@ -691,11 +694,11 @@ class Solver {
                         // process separation
                         if (vMoveRow >= 30000) { 
                             offset[dim] = -30000
-                            return [{step: [...offset], mpl: pRow}]
+                            return [{step: [...offset], mpl: pRow, separation: true}]
                         }
                         for (let step = 1;step <= vMoveRow;step++) {
                             offset[dim] = -1*step
-                            movelist.push({step: [...offset], mpl: pRow})
+                            movelist.push({step: [...offset], mpl: pRow, separation: false})
                         }
                     }
                 }
@@ -727,11 +730,11 @@ class Solver {
                         // process separation
                         if (vMoveCol >= 30000) { 
                             offset[dim] = 30000
-                            return [{step: [...offset], mpl: pCol}]
+                            return [{step: [...offset], mpl: pCol, separation: true}]
                         }
                         for (let step = 1;step <= vMoveCol;step++) {
                             offset[dim] = step
-                            movelist.push({step: [...offset], mpl: pCol})
+                            movelist.push({step: [...offset], mpl: pCol, separation: false})
                         }
                     }
                 }
@@ -742,10 +745,82 @@ class Solver {
     prepare(node) {
         let movelist = this.getMovevementList(node)
         let nodelist = []
+        console.log("prepare", node.movingPieceList, node.moveDirection, node.id)
         for (let move of movelist) {
-            nodelist.push(new Node(node, move.mpl, move.step))
+            let newNode = new Node(node, move.mpl, move.step, move.separation)
+            nodelist.push(newNode)
+            console.log("mpl", move.mpl, "dir", move.step, newNode.id)
         }
         return nodelist
+    }
+    solve(startNode) {
+        let curListFront = 0;
+        let newListFront = 1;
+        let oldFront = 0;
+        let curFront = 1;
+        let newFront = 2;
+        let closed = [[], [], []]
+        let openlist = [[], []]
+        let closedCache = [[], [], []]
+    
+        closed[curFront].push(startNode)
+        closedCache[curFront].push(startNode.id)
+        openlist[curListFront].push(startNode)
+    
+        let node
+        let level = 1
+        while (!openlist[curListFront].length == 0) {
+            node = openlist[curListFront].pop()
+            let st
+            let movesList = this.prepare(node)
+            while (st = movesList.pop()) {
+                if (closedCache[oldFront].includes(st.id) || closedCache[curFront].includes(st.id) || closedCache[newFront].includes(st.id)) {
+                    continue
+                }
+                // never seen this node before, add it to new layer
+                closed[newFront].push(st)
+                closedCache[newFront].push(st.id)
+                // check for separation
+                if (!st.isSeparation) {
+                    // it is not a separation, so add it for later analysis and continue to next node
+                    openlist[newListFront].push(st)
+                    continue
+                }
+                // this is a separation, continue to analyse the two subproblems
+                // not implemented yet
+                console.log ("SEPARATION FOUND")
+                return st
+            }
+            // if we get here, we have exhausted this layer of the search tree
+            // move to the next layer
+            if (openlist[curListFront].length == 0) {
+                console.log("Next Level", level++)
+                console.log(closedCache[newFront])
+                curListFront = 1 - curListFront;
+                newListFront = 1 - newListFront;
+                closed[oldFront]=[]
+                closedCache[oldFront]=[]
+                oldFront = curFront;
+                curFront = newFront;
+                newFront = (newFront + 1) % 3;
+            }
+        }
+        console.log("DEAD END")
+        // the entire tree has been processed, no separation found
+        return null
+    }
+    solveAll() {
+        for (let idx in this.assembler.assemblies) {
+            console.log("solving assembly", idx)
+            let rootNode = this.assembler.getAssemblyNode(idx)
+            this.solve(rootNode)
+        }
+    }
+    debug(id) {
+        let rootNode = this.assembler.getAssemblyNode(id)
+        let movelist = this.prepare(rootNode)
+        this.getMovevementList(movelist[0])
+        this.solve(rootNode)
     }
 }
 
@@ -757,8 +832,8 @@ let s = new Solver(theXMPuzzle)
 
 console.profile()
     let r
-    s.assembler.getAssemblyNode(0)
-    r = s.prepare(s.assembler.getAssemblyNode(0))
-    r = s.getMovevementList(r[3])
+//    s.assembler.debug(26)
+//    r = s.solve(s.assembler.getAssemblyNode(26))
+    r = s.solveAll()
 console.profileEnd()
 console.log(r)

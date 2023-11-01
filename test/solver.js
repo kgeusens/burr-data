@@ -403,7 +403,26 @@ class Solver {
                                 let min = ik[dim] + kj[dim]
                                 if (min < ij[dim]) {
                                     ij[dim] = min
-                                    again = true
+                                    // optimize: check if this update impacts already updated values
+                                    // if ai + ij < aj for any a < i then run again
+                                    // if ij + jb < ib for any b < j then run again
+                                    // else we keep 'again' on false and just continue
+                                    if (!again) {
+                                        for (let a=0;a<i;a++) {
+                                            if ( matrix[j*numRow + a][dim] >  matrix[i*numRow + a][dim] + ij[dim]) {
+                                                again = true
+                                                break
+                                            }
+                                        }
+                                    }
+                                    if (!again) {
+                                        for (let b=0;b<j;b++) {
+                                            if ( matrix[b*numRow + i][dim] >  matrix[b*numRow + j][dim] + ij[dim]) { 
+                                                again = true
+                                                break
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -574,7 +593,7 @@ class Solver {
                 }
                 // this is a separation, continue to analyse the two subproblems
                 // not implemented yet
-//                console.log ("SEPARATION FOUND")
+                console.log ("SEPARATION FOUND")
                 return st
             }
             // if we get here, we have exhausted this layer of the search tree
@@ -598,7 +617,7 @@ class Solver {
     solveAll() {
         for (let idx in this.assembler.assemblies) {
             idx = Number(idx)
-//            console.log("solving assembly", idx)
+            console.log("solving assembly", idx)
             let rootNode = this.assembler.getAssemblyNode(idx)
             this.solve(rootNode)
         }

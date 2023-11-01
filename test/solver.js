@@ -578,7 +578,7 @@ class Solver {
     solve() {
         return solve(this.assembler.getAssemblyNode(0))
     }
-    getCutlerMatrix(node) {
+    getMovevementList(node) {
         // the shapeid can be found in the content of the pieceList
         let matrix = []
         let numDirections = 3
@@ -665,7 +665,7 @@ class Solver {
             * onthoud de posities ([p]) met waarde = 0 (hier zit "k" gegarandeerd ook in)
             * onthoud de kleinste ">0" waarde (vmove). vmove==undefined als alle posities==0
             * return (vmove, [p]) => vmove is de max afstand, [p] is de group die samen beweegt
-            * als vmove==30000 dan is dit een separation
+            * als vmove==30000 dan is dit een separation en mag je stoppen (return only the separation)
         */
         let movelist = []
         // Rows first
@@ -689,8 +689,13 @@ class Solver {
                 if (vMoveRow) {
                     // we have a partition
                     for (let p of pRow) assigned[p] = true
-                    // only add it to movelist if it is not longer than half of the pieces (eg 3 out of 6, or 3 out of 7, but not 4)
+                    // only process it if it is not longer than half of the pieces (eg 3 out of 6, or 3 out of 7, but not 4)
                     if (pRow.length <= Math.floor(node.pieceList.length/2)) {
+                        // process separation
+                        if (vMoveRow >= 30000) { 
+                            offset[dim] = -30000
+                            return [{step: [...offset], mpl: pRow}]
+                        }
                         for (let step = 1;step <= vMoveRow;step++) {
                             offset[dim] = -1*step
                             movelist.push({step: [...offset], mpl: pRow})
@@ -717,12 +722,16 @@ class Solver {
                 }
                 // we now have the results for piece k in dimension dim
                 let offset = [0,0,0]
-                
                 if (vMoveCol) { 
                     // we have a partition
                     for (let p of pCol) assigned[p] = true
                     // only add it to movelist if it is not longer than half of the pieces (eg 3 out of 6, or 3 out of 7, but not 4)
                     if (pCol.length <= Math.floor(node.pieceList.length/2)) {
+                        // process separation
+                        if (vMoveCol >= 30000) { 
+                            offset[dim] = 30000
+                            return [{step: [...offset], mpl: pCol}]
+                        }
                         for (let step = 1;step <= vMoveCol;step++) {
                             offset[dim] = step
                             movelist.push({step: [...offset], mpl: pCol})
@@ -731,8 +740,7 @@ class Solver {
                 }
             }
         }
-        console.log(movelist)
-        return matrix
+        return movelist
     }
 }
 
@@ -745,6 +753,6 @@ let s = new Solver(theXMPuzzle)
 console.profile()
     let r
     s.assembler.getAssemblyNode(0)
-    r = s.getCutlerMatrix(s.assembler.getAssemblyNode(0))
+    r = s.getMovevementList(s.assembler.getAssemblyNode(0))
 console.profileEnd()
 console.log(r)

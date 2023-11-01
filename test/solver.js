@@ -667,25 +667,47 @@ class Solver {
             * return (vmove, [p]) => vmove is de max afstand, [p] is de group die samen beweegt
             * als vmove==30000 dan is dit een separation
         */
-        let pos = []
-        let neg = []
         let movelist = []
+        // Rows first
         for (let dim = 0;dim <3; dim++) {
-            for (let k in node.pieceList) { // overloop kolom k (positieve beweging) of rij k (negatieve beweging) inclusief jezelf (=altijd 0)
+            let assigned = []
+            for (let k = 0; k<node.pieceList.length; k++) { // overloop kolom k (positieve beweging) of rij k (negatieve beweging) inclusief jezelf (=altijd 0)
                 k=Number(k)
-                let pCol=[k]
-                let pRow=[k]
-                let vMoveCol
+                // optimization: per offset (aka per dimension loop) each piece belongs to exactly one mpl, 
+                // so we do not need to analyze pieces as soon as they have been assigned to movelist. Keep track using assigned=true
+                if (assigned[k]) continue
+                let pRow=[]
                 let vMoveRow
                 for (let i in node.pieceList) {
                     i=Number(i);
-                    if (i == k) continue
-                    let vCol = matrix[i*numRow + k][dim]
                     let vRow = matrix[k*numRow + i][dim]
-                    if (vCol == 0) pCol.push(i) // onthoud de posities ([p]) met waarde = 0
-                    else vMoveCol = Math.min(vCol, vMoveCol?vMoveCol:30000) //onthoud de kleinste ">0" waarde (vmove).
                     if (vRow == 0) pRow.push(i) // onthoud de posities ([p]) met waarde = 0
                     else vMoveRow = Math.min(vRow, vMoveRow?vMoveRow:30000) //onthoud de kleinste ">0" waarde (vmove).
+                }
+                // we now have the results for piece k in dimension dim
+                let offset = [0,0,0]
+                if (vMoveRow) { 
+                    offset[dim] = -1*vMoveRow
+                    movelist.push({step: offset, mpl: pRow})
+                    for (let p of pRow) assigned[p] = true
+                }
+            }
+        }
+        // Columns next
+        for (let dim = 0;dim <3; dim++) {
+            let assigned = []
+            let kmax = node.pieceList.length
+            for (let k = 0; k<kmax; k++) { // overloop kolom k (positieve beweging) of rij k (negatieve beweging) inclusief jezelf (=altijd 0)
+                // optimization: per offset (aka per dimension loop) each piece belongs to exactly one mpl, 
+                // so we do not need to analyze pieces as soon as they have been assigned to [p]
+                if (assigned[k]) continue
+                let pCol=[]
+                let vMoveCol
+                for (let i in node.pieceList) {
+                    i=Number(i);
+                    let vCol = matrix[i*numRow + k][dim]
+                    if (vCol == 0) {pCol.push(i)} // onthoud de posities ([p]) met waarde = 0
+                    else vMoveCol = Math.min(vCol, vMoveCol?vMoveCol:30000) //onthoud de kleinste ">0" waarde (vmove).
                 }
                 // we now have the results for piece k in dimension dim
                 let offset = [0,0,0]
@@ -693,14 +715,11 @@ class Solver {
                 if (vMoveCol) { 
                     offset[dim] = vMoveCol
                     movelist.push({step: offset, mpl: pCol})
-                }
-                if (vMoveRow) { 
-                    offset[dim] = -1*vMoveRow
-                    movelist.push({step: offset, mpl: pRow})
+                    for (let p of pCol) assigned[p] = true
                 }
             }
-            console.log(movelist)
         }
+        console.log(movelist)
         return matrix
     }
 }

@@ -77,12 +77,10 @@ class Assembler {
             { voxel:this._cache.resultVoxel } )
         let rbb = r.boundingBox
         let matrix = []
-//        for (let psid in this.problemShapes) { // problemshapes
         for (let psid in this._cache._shapeMap) { // problemshapes //KG
             psid = Number(psid)
             for (let rotidx = 0; rotidx<24;rotidx++) { // 24 rotations each
 //                console.log("psid", psid, "rot", rotidx)
-//                let rotatedInstance = new DATA.VoxelInstance({ voxel: this.puzzleVoxels[this.problemShapes[psid].id], rotation: rotidx})
                 let rotatedInstance = this._cache.getShapeInstance(psid, rotidx) // KG
                 let pbb = rotatedInstance.boundingBox
                 for (let x = rbb.min[0] - pbb.min[0]; x <= rbb.max[0] - pbb.max[0];x++) {
@@ -90,13 +88,10 @@ class Assembler {
                         for (let z = rbb.min[2] - pbb.min[2]; z <= rbb.max[2] - pbb.max[2];z++) {
                             let offset = [x, y, z]
 //                            console.log("offset", offset)
-//                            let wm = rotatedInstance.worldmap.clone().translate(offset)
                             let wm = rotatedInstance.worldmap.translateToClone(offset)
                             let map = r.worldmap.getDLXmap(wm)
-//                            let map = null
                             if (map) {
-//                                map.data={id:Number(this.problemShapes[psid].id), rotation:rotidx, hotspot:rotatedInstance.hotspot, offset:offset, instance: rotatedInstance} // KG
-                                map.data={id:psid, rotation:rotidx, hotspot:rotatedInstance.hotspot, offset:offset, instance: rotatedInstance}
+                                map.data={id:psid, rotation:rotidx, hotspot:rotatedInstance.hotspot, offset:offset}
                                 // we need to add secondary constraints for the pieces (based on psid)
                                 let mlen=map.secondaryRow.length
                                 map.secondaryRow[mlen+this._cache._shapeMap.length-1]=0
@@ -126,7 +121,6 @@ class Assembler {
             let rootNode = new Node()
             rootNode.setFromAssembly(this._assemblies[idx])
             let wm = rootNode.getWorldmap()
-//            console.log(wm)
             let resultwm = this.resultVoxel.worldmap
             let count = 0
             // check that worldmap positions map to the result
@@ -146,38 +140,6 @@ class Assembler {
             }
         }
     }
-    solve() {
-        for (let idx in this._assemblies) {
-            console.log("solving assembly", idx)
-            let rootNode = new Node()
-            rootNode.setFromAssembly(this.assemblies[idx])
-            solve(rootNode)
-        }
-    }
-    debug(idx=0) {
-        let rootNode = new Node()
-        rootNode.setFromAssembly(this.assemblies[idx])
-//        rootNode.debug()
-        solve(rootNode)
-        for (let i=0;i<1000000;i++) {
-            let tempNode = new Node(rootNode)
-        }
-        return
-        let node1 = new Node(rootNode, [0], [0, -1, 0])
-        let node2 = new Node(node1, [0], [0, -1, 0])
-        let node = rootNode
-        console.log("rootnode")
-        console.log("  offsetList", node.offsetList)
-        console.log("  positionList", node.positionList)
-        console.log("node1")
-        node=node1
-        console.log("  offsetList", node.offsetList)
-        console.log("  positionList", node.positionList)
-        console.log("node2")
-        node=node2
-        console.log("  offsetList", node.offsetList)
-        console.log("  positionList", node.positionList)
-    }
 }
 
 // I think "Node" can be the representation of a search node in the tree
@@ -187,22 +149,17 @@ class Node {
     hotspotList = [] // static throughout the searchtree
     offsetList = [] // changes throughout the searchtree.
 //    positionList = [] // calculated based on hotspot and offset
-//    instances = [] // static VoxelInxstances of the rotated voxels (boundingBox starting at [0,0,0])
-    worldmapList = [] // static worldmaps of the instances, remapped to its index in this list. eg worldmapList[2] is remapped to 2 // REMOVE WHEN READY
     id // (key) id = the concatenation of positionList, but normalized to the first element at [0,0,0]
     #parent=null
     #root=null
-    isSeparation
-    movingPieceList
-    moveDirection
+    isSeparation // did we remove the pieces from the puzzle
+    movingPieceList // pieces that needed to move to get here from the parent
+    moveDirection // the step that the pieces needed to make to get here ;)
     // Pass a single solution from the assembler.
     // Parse the information from the data property
-    // instances are references to VoxelInstances created by the assembler. VoxelInstances are pre-translated over hotspot.
     // rotation: the rotation index applied to the voxel
     // hotspot : the default translation applied to the rotated voxel
     // offset : the additional translation for the VoxelInstance as calculated by the assembler
-    // position : Sum of offset and hotspot. The full transformation for a voxel is determined by (rotation, position)
-    // worldmap : worldmap of the instance. Still need to translate over offset to reflect correct state in solution.
     // parent : undefined by default, but needed when this is used as a node in the solution tree. Points back to the previous step.
     constructor(parentObject, movingPieceList, translation = [0,0,0], separation = false) {
         if (parentObject) {
@@ -212,22 +169,20 @@ class Node {
             this.rotationList = parentObject.rotationList
             this.hotspotList = parentObject.hotspotList
             this.isSeparation = separation
-            this.instances = parentObject.instances // REMOVE
-            this.worldmapList = parentObject.worldmapList // REMOVE
             for (let idx in parentObject.offsetList) this.offsetList[idx] = [...parentObject.offsetList[idx]]
             if (movingPieceList) {
                 this.movingPieceList = [...movingPieceList]
                 this.moveDirection = [...translation]
                 movingPieceList.forEach((v, idx) =>{
-                    let offset = this.offsetList[v]
-                    for (let i in offset) offset[i] += translation[i]
+                    this.offsetList[v][0] += translation[0]
+                    this.offsetList[v][1] += translation[1]
+                    this.offsetList[v][2] += translation[2]
                 })
             }
             let pl = this.positionList
             let firstPos = pl[0]
-            this.id = pl.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).reduce((res,v,i)=>{
-                return res + " " + v.join(" ")
-            }, "id")
+            this.id = "id"
+            pl.forEach(v => {this.id += " " + (v[0] - firstPos[0]) + " " + (v[1] - firstPos[1])+" "+(v[2] - firstPos[2])})
         }
         else {
             this.#root = this
@@ -238,16 +193,6 @@ class Node {
     get positionList() { 
         return this.hotspotList.map((v, idx) => [v[0] + this.offsetList[idx][0],v[1] + this.offsetList[idx][1],v[2] + this.offsetList[idx][2]])
     }
-    getWorldmaps() {
-        let resultWM = new DATA.GroupMap()
-        let pieceWM = []
-        this.worldmapList.forEach((v,idx) => {
-                let pwm = this.worldmapList[idx].translateToClone(this.offsetList[idx])
-                pieceWM[idx] = pwm
-                resultWM.place(pwm,idx)
-            })
-        return {resultWM:resultWM, pieceWM:pieceWM}
-    }
     setFromAssembly(assembly) {
         // assembly is an array of pieces, it contains a property called "data" with info that we passed to the assembler.
         // Here we deconstruct that information into separate arrays.
@@ -255,9 +200,6 @@ class Node {
         this.rotationList = assembly.map(v => Number(v.data.rotation))
         this.hotspotList = assembly.map(v => v.data.hotspot)
         this.offsetList = assembly.map(v => [v.data.offset[0], v.data.offset[1], v.data.offset[2]])
-        this.instances = assembly.map(v => v.data.instance)
-        // KG : worldmaps of pieces no longer need to remap. The remapping is done when the GroupMap is created.
-        this.worldmapList = this.instances.map((v,idx) => v.worldmap)
         // ID = the concatenation of the positionList, but normalized to the first element at [0,0,0]
         let firstPos = this.positionList[0]
         this.id = "id " + this.positionList.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).flat().join(" ")
@@ -298,19 +240,13 @@ class movementCache {
         }
         return instance
     }
-    getMaxValues(id1, rot1, id2, rot2, dx, dy, dz, direction = 1) {
+    getMaxValues(id1, rot1, id2, rot2, dx, dy, dz) {
         // calculates and caches how far piece1 can move in positive directions before hitting piece2
         // [dx, dy, dz] is the relative offset of piece2 compared to piece1
         // axiom: (p1 -> p2) = (p2 -> p1) in opposite direction
         // Means when we calculate the positive direction of p1 -> p2, we also know the negative direction of p2 -> p1
         // therefor we only cache positive directions.
         // If ever you need to lookup a negative direction, just swap the positions of the 2 pieces before lookup
-        // For convenience, you can specify "direction" and we will do the swapped lookup for you ;)
-        if (direction != 1) {
-            dx = -1*dx;dy=-1*dy;dz=-1*dz
-            let id=id1;id1=id2;id2=id
-            let rot=rot1;rot1=rot2;rot2=rot
-        }
         let hash = id1 + " " + rot1 + " " + id2 + " " + rot2 + " " + dx + " " + dy + " " + dz
         let s1 = this.getShapeInstance(id1, rot1)
         let s2 = this.getShapeInstance(id2, rot2)
@@ -337,7 +273,7 @@ class movementCache {
             for (let y = intersection.min[1]; y<=intersection.max[1];y++) {
                 for (let z = intersection.min[2]; z<=intersection.max[2];z++) {
                     let gap = 32000
-                    for (let x = union.min[0]; x<=union.max[0];x++) {
+                    for (let x = union.min[0]; x<=union.max[0];x++) { 
                         if (s1.worldmap.hasPoint([x, y, z])) { // s1 is filled
                             gap = 0
                         }
@@ -419,151 +355,6 @@ pseudo code:
 for performance reasons, calculating mpl and the boundingBoxes can be done in 1 function
 */
 
-function prepare(node) {
-    function getMovingPiecelist(valArray, translation, rwm, pwmList) {
-		let mpl = []
-		let mplVal = [...valArray]
-        let hashOffset = DATA.GroupMap.worldSteps[0]*translation[0] + DATA.GroupMap.worldSteps[1]*translation[1] + DATA.GroupMap.worldSteps[2]*translation[2]
-		for (let piece of valArray) { mpl[piece] = true}
-        // now loop over mplval and append conflicting pieces if not yet in the list. One iteration should do the trick
-        for (let i=0;i<mplVal.length;i++) {
-            let pwm = pwmList[mplVal[i]] // the worldmap of the piece
-            pwm._map.forEach((val, hash) => {
-                // check
-                let targetHash = hash*1 + hashOffset
-                let targetVal = rwm.getHash(targetHash)
-                if (!(targetVal === undefined || mpl[targetVal])) {
-                    // conflict
-                    mpl[targetVal]=true;mplVal.push(targetVal) // fastest operation on earth
-                }
-            })
-            if (mplVal.length == node.pieceList.length) break
-        }
-        return mplVal // valArray is not modified
-    }
-    function canMove(idxList, translation, rwm, pwmList) {
-        return rwm.canMove(idxList,translation)
-    }
-    function getMaxMoves(mpl, dim=0, step) {
-        let maxmpl = 0
-        let minmpl = 30000
-        let maxrest = 0
-        let minrest = 30000
-        for (let idx in node.pieceList) {
-            let max = node.instances[idx].boundingBox.max[dim] + node.offsetList[idx][dim]
-            let min = node.instances[idx].boundingBox.min[dim] + node.offsetList[idx][dim]
-            if (idx in mpl) {
-                if (max>maxmpl) maxmpl = max
-                if (min<minmpl) minmpl = min
-            } 
-            else {
-                if (max>maxrest) maxrest = max
-                if (min<minrest) minrest = min
-            }
-        }
-        if (step == 1) return maxrest - minmpl
-        else return maxmpl - minrest
-    }
-    
-    let moveslist = []
-    let {resultWM, pieceWM} = node.getWorldmaps()
-    let mplCache = [] // 0
-    console.log("prepare", node.movingPieceList, node.moveDirection, node.id)
-    for (let pidx in node.pieceList) { // 1
-        for (let dim of [0,1,2]) {
-            for (let minstep of [1, -1]) {
-                let dir = [0,0,0]
-                dir[dim] = minstep
-                let mpl = getMovingPiecelist([pidx*1], dir, resultWM, pieceWM) // a
-                if (mpl.length == node.pieceList.length) continue // i
-                let newNode = new Node(node, mpl, dir)
-                if (mplCache.includes(newNode.id)) continue // i
-                mplCache.push(newNode.id)
-                moveslist.push(newNode)
-                // ii.
-                let maxMoves = getMaxMoves(mpl, dim, minstep)
-                let move = 2
-                console.log("mpl", mpl, "dir", dir, newNode.id)
-                while (move <= maxMoves) {
-                    dir[dim]=minstep*move
-                    if (canMove(mpl, dir, resultWM, pieceWM)) {
-                        let newNode = new Node(node, mpl, dir)
-                        console.log("mpl", mpl, "dir", dir, newNode.id)
-                        if (mplCache.includes(newNode.id)) break // i
-                        mplCache.push(newNode.id)
-                        moveslist.push(newNode)
-                    } 
-                    else break
-                    move++
-                }
-                // if move > maxMoves then this is a separation
-                if (move > maxMoves) {
-                    newNode.isSeparation = true
-                    return [newNode]
-                }
-            }
-        }
-    }   
-    return moveslist
-}
-
-function solve(startNode) {
-    let curListFront = 0;
-    let newListFront = 1;
-    let oldFront = 0;
-    let curFront = 1;
-    let newFront = 2;
-    let closed = [[], [], []]
-    let openlist = [[], []]
-    let closedCache = [[], [], []]
-
-    closed[curFront].push(startNode)
-    closedCache[curFront].push(startNode.id)
-    openlist[curListFront].push(startNode)
-
-    let node
-    let level = 1
-    while (!openlist[curListFront].length == 0) {
-        node = openlist[curListFront].pop()
-        let st
-        let movesList = prepare(node)
-        while (st = movesList.pop()) {
-            if (closedCache[oldFront].includes(st.id) || closedCache[curFront].includes(st.id) || closedCache[newFront].includes(st.id)) {
-                continue
-            }
-            // never seen this node before, add it to new layer
-            closed[newFront].push(st)
-            closedCache[newFront].push(st.id)
-            // check for separation
-            if (!st.isSeparation) {
-                // it is not a separation, so add it for later analysis and continue to next node
-                openlist[newListFront].push(st)
-                continue
-            }
-            // this is a separation, continue to analyse the two subproblems
-            // not implemented yet
-            console.log ("SEPARATION FOUND")
-            return st
-        }
-        // if we get here, we have exhausted this layer of the search tree
-        // move to the next layer
-        if (openlist[curListFront].length == 0) {
-            console.log("Next Level", level++)
-            console.log(closedCache[newFront])
-            curListFront = 1 - curListFront;
-            newListFront = 1 - newListFront;
-            closed[oldFront]=[]
-            closedCache[oldFront]=[]
-            oldFront = curFront;
-            curFront = newFront;
-            newFront = (newFront + 1) % 3;
-        }
-    }
-    console.log("DEAD END")
-    // the entire tree has been processed, no separation found
-    return null
-}
-
 class Solver {
     _puzzle
     _problemIndex
@@ -577,50 +368,52 @@ class Solver {
     }
     get assembler() { return this._assembler }
     getMovevementList(node) {
-        // needs the movementcache
-        // the shapeid can be found in the content of the pieceList
-        let matrix = []
-        let numDirections = 3
-        let numRow = node.pieceList.length
-        // pieceList maps to the shapeMap idx
-        for (let j in node.pieceList) { 
-            for (let i in node.pieceList) {
-                if (i==j) matrix.push([0,0,0])
-                else {
-                    let s1 = node.pieceList[i]; let r1 = node.rotationList[i];let o1 = node.offsetList[i]
-                    let s2 = node.pieceList[j]; let r2 = node.rotationList[j];let o2 = node.offsetList[j]
-                    let maxMoves = this._cache.getMaxValues(s1, r1, s2, r2, node.offsetList[j][0] - node.offsetList[i][0], node.offsetList[j][1] - node.offsetList[i][1], node.offsetList[j][2] - node.offsetList[i][2])
-                    matrix.push(maxMoves)
+        function calcCutlerMatrix(node, cache) {
+            // needs the movementcache
+            // the shapeid can be found in the content of the pieceList
+            let matrix = []
+            let numRow = node.pieceList.length
+            // pieceList maps to the shapeMap idx
+            for (let j in node.pieceList) { 
+                for (let i in node.pieceList) {
+                    if (i==j) matrix.push([0,0,0])
+                    else {
+                        let s1 = node.pieceList[i]; let r1 = node.rotationList[i];let o1 = node.offsetList[i]
+                        let s2 = node.pieceList[j]; let r2 = node.rotationList[j];let o2 = node.offsetList[j]
+                        let maxMoves = cache.getMaxValues(s1, r1, s2, r2, o2[0] - o1[0], o2[1] - o1[1], o2[2] - o1[2])
+                        matrix.push(maxMoves)
+                    }
                 }
             }
-        }
-//        console.log(matrix)
-        // Phase 2: algorithm from Bill Cutler
-        let again = true
-        while (again) {
-            again = false
-            for (let j in node.pieceList) {
-                for (let i in node.pieceList) {
-                    if (i == j) continue // diagonal is 0, nothing to do
-                    for ( let k in node.pieceList ) {
-                        // (i,j) <= (i,k) + (k,j)
-                        if (k == j) continue 
-                        i=Number(i);j=Number(j);k=Number(k)
-                        let ij = matrix[j*numRow + i]
-                        let ik = matrix[k*numRow + i]
-                        let kj = matrix[j*numRow + k]
-                        for (let dim = 0; dim <=2; dim++) {
-                            let min = ik[dim] + kj[dim]
-                            if (min < ij[dim]) {
-                                ij[dim] = min
-                                again = true
+            // Phase 2: algorithm from Bill Cutler
+            let again = true
+            while (again) {
+                again = false
+                for (let j in node.pieceList) {
+                    for (let i in node.pieceList) {
+                        if (i == j) continue // diagonal is 0, nothing to do
+                        for ( let k in node.pieceList ) {
+                            // (i,j) <= (i,k) + (k,j)
+                            if (k == j) continue 
+                            i=Number(i);j=Number(j);k=Number(k)
+                            let ij = matrix[j*numRow + i]
+                            let ik = matrix[k*numRow + i]
+                            let kj = matrix[j*numRow + k]
+                            for (let dim = 0; dim <=2; dim++) {
+                                let min = ik[dim] + kj[dim]
+                                if (min < ij[dim]) {
+                                    ij[dim] = min
+                                    again = true
+                                }
                             }
                         }
                     }
                 }
             }
+            return matrix
         }
-//        console.log(matrix)
+
+        let matrix = calcCutlerMatrix(node, this._cache)
         // Continue to calculate the maxMoves before hitting anything else
         //
         /*
@@ -668,14 +461,11 @@ class Solver {
             * als vmove==30000 dan is dit een separation en mag je stoppen (return only the separation)
         */
         let movelist = []
+        let numRow = node.pieceList.length
         // Rows first
         for (let dim = 0;dim <3; dim++) {
-            let assigned = []
             for (let k = 0; k<node.pieceList.length; k++) { // overloop kolom k (positieve beweging) of rij k (negatieve beweging) inclusief jezelf (=altijd 0)
                 k=Number(k)
-                // optimization: per offset (aka per dimension loop) each piece belongs to exactly one mpl, 
-                // so we do not need to analyze pieces as soon as they have been assigned to movelist. Keep track using assigned=true
-//                if (assigned[k]) continue
                 let pRow=[]
                 let vMoveRow
                 for (let i in node.pieceList) {
@@ -688,7 +478,6 @@ class Solver {
                 let offset = [0,0,0]
                 if (vMoveRow) {
                     // we have a partition
-                    for (let p of pRow) assigned[p] = true
                     // only process it if it is not longer than half of the pieces (eg 3 out of 6, or 3 out of 7, but not 4)
                     if (pRow.length <= Math.floor(node.pieceList.length/2)) {
 //                    if (true) {
@@ -707,12 +496,8 @@ class Solver {
         }
         // Columns next
         for (let dim = 0;dim <3; dim++) {
-            let assigned = []
             let kmax = node.pieceList.length
             for (let k = 0; k<kmax; k++) { // overloop kolom k (positieve beweging) of rij k (negatieve beweging) inclusief jezelf (=altijd 0)
-                // optimization: per offset (aka per dimension loop) each piece belongs to exactly one mpl, 
-                // so we do not need to analyze pieces as soon as they have been assigned to [p]
-//                if (assigned[k]) continue
                 let pCol=[]
                 let vMoveCol
                 for (let i in node.pieceList) {
@@ -725,7 +510,6 @@ class Solver {
                 let offset = [0,0,0]
                 if (vMoveCol) { 
                     // we have a partition
-                    for (let p of pCol) assigned[p] = true
                     // only add it to movelist if it is not longer than half of the pieces (eg 3 out of 6, or 3 out of 7, but not 4)
                     if (pCol.length <= Math.floor(node.pieceList.length/2)) {
 //                    if (true) {
@@ -790,7 +574,7 @@ class Solver {
                 }
                 // this is a separation, continue to analyse the two subproblems
                 // not implemented yet
-                console.log ("SEPARATION FOUND")
+//                console.log ("SEPARATION FOUND")
                 return st
             }
             // if we get here, we have exhausted this layer of the search tree
@@ -807,14 +591,14 @@ class Solver {
                 newFront = (newFront + 1) % 3;
             }
         }
-        console.log("DEAD END")
+//        console.log("DEAD END")
         // the entire tree has been processed, no separation found
         return null
     }
     solveAll() {
         for (let idx in this.assembler.assemblies) {
             idx = Number(idx)
-            console.log("solving assembly", idx)
+//            console.log("solving assembly", idx)
             let rootNode = this.assembler.getAssemblyNode(idx)
             this.solve(rootNode)
         }

@@ -8,9 +8,13 @@ import { log } from 'console'
 
 class Assembler {
     _cache
-    _assemblies=null
+    _assemblies
     constructor(cache) {
         this._cache = cache
+    }
+    get assemblies() {
+        if (!this._assemblies) this._assemblies=this.assemble()
+        return this._assemblies
     }
     calcRotations() {
         let point = [ 1, 2, 3]
@@ -110,9 +114,9 @@ class Assembler {
         this._assemblies = DLX.findAll(this.getDLXmatrix())
         return this._assemblies
     }
-    getAssembly(idx) {
+    getAssemblyNode(idx) {
         let rootNode = new Node()
-        rootNode.setFromAssembly(this._assemblies[idx])
+        rootNode.setFromAssembly(this.assemblies[idx])
         return rootNode
     }
     checkAssembly() {
@@ -178,13 +182,13 @@ class Assembler {
 
 // I think "Node" can be the representation of a search node in the tree
 class Node {
-    pieceList = [] // static throughout the searchtree
+    pieceList = [] // map to shape instance
     rotationList = [] // static throughout the searchtree
     hotspotList = [] // static throughout the searchtree
     offsetList = [] // changes throughout the searchtree.
-//    positionList = [] // calculated based on hostpost and offset
-    instances = [] // static VoxelInxstances of the rotated voxels (boundingBox starting at [0,0,0])
-    worldmapList = [] // static worldmaps of the instances, remapped to its index in this list. eg worldmapList[2] is remapped to 2
+//    positionList = [] // calculated based on hotspot and offset
+//    instances = [] // static VoxelInxstances of the rotated voxels (boundingBox starting at [0,0,0])
+//    worldmapList = [] // static worldmaps of the instances, remapped to its index in this list. eg worldmapList[2] is remapped to 2
     id // (key) id = the concatenation of positionList, but normalized to the first element at [0,0,0]
     #parent=null
     #root=null
@@ -207,8 +211,8 @@ class Node {
             this.pieceList = parentObject.pieceList
             this.rotationList = parentObject.rotationList
             this.hotspotList = parentObject.hotspotList
-            this.instances = parentObject.instances
-            this.worldmapList = parentObject.worldmapList //
+//            this.instances = parentObject.instances
+//            this.worldmapList = parentObject.worldmapList //
             for (let idx in parentObject.offsetList) this.offsetList[idx] = [...parentObject.offsetList[idx]]
             if (movingPieceList) {
                 this.movingPieceList = [...movingPieceList]
@@ -250,9 +254,9 @@ class Node {
         this.rotationList = assembly.map(v => Number(v.data.rotation))
         this.hotspotList = assembly.map(v => v.data.hotspot)
         this.offsetList = assembly.map(v => [v.data.offset[0], v.data.offset[1], v.data.offset[2]])
-        this.instances = assembly.map(v => v.data.instance)
+//        this.instances = assembly.map(v => v.data.instance)
         // KG : worldmaps of pieces no longer need to remap. The remapping is done when the GroupMap is created.
-        this.worldmapList = this.instances.map((v,idx) => v.worldmap)
+//        this.worldmapList = this.instances.map((v,idx) => v.worldmap)
         // ID = the concatenation of the positionList, but normalized to the first element at [0,0,0]
         let firstPos = this.positionList[0]
         this.id = this.positionList.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).flat().join(" ")
@@ -570,34 +574,113 @@ class Solver {
         this._cache = new movementCache(puzzle, problemIdx)
         this._assembler = new Assembler(this._cache)
     }
-    get assemblies() {
-        if (!this._assembler.assemblies) return this._assembler.assemble()
-        else return this._assembler.assemblies
-    }
+    get assembler() { return this._assembler }
     solve() {
+        return solve(this.assembler.getAssemblyNode(0))
     }
     getCutlerMatrix(node) {
-        let array = []
-        numDirections = 3
-        numRow = numDirections * node.pieceList.length
+        // the shapeid can be found in the content of the pieceList
+        let matrix = []
+        let numDirections = 3
+        let numRow = node.pieceList.length
+        // pieceList maps to the shapeMap idx
         for (let j in node.pieceList) { 
             for (let i in node.pieceList) {
-                array.push(cache.getMaxValues())
+                if (i==j) matrix.push([0,0,0])
+                else {
+                    let s1 = node.pieceList[i]; let r1 = node.rotationList[i];let o1 = node.offsetList[i]
+                    let s2 = node.pieceList[j]; let r2 = node.rotationList[j];let o2 = node.offsetList[j]
+                    let maxMoves = this._cache.getMaxValues(s1, r1, s2, r2, node.offsetList[j][0] - node.offsetList[i][0], node.offsetList[j][1] - node.offsetList[i][1], node.offsetList[j][2] - node.offsetList[i][2])
+//                    console.log(s1, "=>", s2, maxMoves)
+                    matrix.push(maxMoves)
+                }
             }
         }
-    }
-}
+        // Phase 2: algorithm from Bill Cutler
+        let again = true
+        while (again) {
+            again = false
+            for (let j in node.pieceList) {
+                for (let i in node.pieceList) {
+                    if (i == j) continue // diagonal is 0, nothing to do
+                    for ( let k in node.pieceList ) {
+                        // (i,j) <= (i,k) + (k,j)
+                        if (k == j) continue 
+                        i=Number(i);j=Number(j);k=Number(k)
+                        let ij = matrix[j*numRow + i]
+                        let ik = matrix[k*numRow + i]
+                        let kj = matrix[j*numRow + k]
+                        for (let dim = 0; dim <=2; dim++) {
+                            let min = ik[dim] + kj[dim]
+                            if (min < ij[dim]) {
+                                ij[dim] = min
+                                again = true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Continue to calculate the maxMoves before hitting anything else
+        //
+        /*
+            --->i
+            |
+            j
 
-function profileRun(assembler)
-{
-    let ri = new DATA.VoxelInstance( { voxel:a.resultVoxel } )
-    for (let c = 0;c<16666;c++) {
-        ri.worldmap.translate([1,0,0])
-        ri.worldmap.translate([0,1,0])
-        ri.worldmap.translate([0,0,1])
-        ri.worldmap.translate([-1,0,0])
-        ri.worldmap.translate([0,-1,0])
-        ri.worldmap.translate([0,0,-1])
+            [
+            [ 0, 0, 0 ], [ 0, 3, 1 ], [ 0, 3, 0 ], [ 0, 3, 0 ], [ 0, 3, 0 ], [ 0, 3, 0 ], [ 0, 3, 0 ], 
+
+            [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ],
+
+            [ 0, 0, 0 ], [ 0, 0, 1 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], 
+
+            [ 0, 0, 0 ], [ 0, 0, 1 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ],
+
+            [ 0, 0, 0 ], [ 0, 0, 1 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ],
+
+            [ 0, 0, 0 ], [ 0, 0, 1 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ],
+
+            [ 0, 0, 0 ], [ 0, 0, 1 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ]
+            ]
+
+            Rij   (*,j) = negatieve richting (dus eigenlijk [-x,-y,-z])
+            Kolom (i,*) = positieve richting ([x,y,z])
+            Dus als je +x wil opzoeken ga je over de kolom kijken
+            en als je -x wil opzoeken ga je over de rij kijken
+
+            Ergens 30000 = separation
+            Ergens een consistent nummer = max moves in die richting
+
+            Zelfde waarden betekent zelfde "move group"
+            bvb (in 1 dimensie voor eenvoud) voor 7 pieces
+            eerste rijs = [0,3,0,3,2,2,2] 
+            betekent dat 
+            * het eerste (ikzelf) en het derde stuk samen bewegen
+            * ze samen kunnen bewegen over afstand 2 (kleinste waarde over ">0" waarden)
+            * als die afstand == 30000 dan is dit een group removal
+
+            Algoritme voor move analyse van "piece k" wordt dan:
+            * overloop kolom k (positieve beweging) of rij k (negatieve beweging) inclusief jezelf (=altijd 0)
+            * onthoud de posities ([p]) met waarde = 0 (hier zit "k" gegarandeerd ook in)
+            * onthoud de kleinste ">0" waarde (vmove). zet vmove=0 als alle posities==0
+            * return (vmove, [p]) => vmove is de max afstand, [p] is de group die samen beweegt
+            * als vmove==30000 dan is dit een separation
+        */
+        for (let j in node.pieceList) {
+            let pos = [30000,30000,30000]
+            let neg = [30000,30000,30000]
+            for (let i in node.pieceList) {
+                if (i==j) continue
+                i=Number(i);j=Number(j)
+                for (let dim = 0;dim <3; dim++) {
+                    pos[dim] = Math.min(pos[dim], matrix[i*numRow + j][dim])
+                    neg[dim] = Math.min(pos[dim], matrix[j*numRow + i][dim])
+                }
+            }
+            console.log(j, pos, neg)
+        }
+        return matrix
     }
 }
 
@@ -608,6 +691,8 @@ const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 let s = new Solver(theXMPuzzle)
 
 console.profile()
-    console.log(s.assemblies.length)
+    let r
+    s.assembler.getAssemblyNode(0)
+    r = s.getCutlerMatrix(s.assembler.getAssemblyNode(0))
 console.profileEnd()
-
+console.log(r)

@@ -663,22 +663,43 @@ class Solver {
             Algoritme voor move analyse van "piece k" wordt dan:
             * overloop kolom k (positieve beweging) of rij k (negatieve beweging) inclusief jezelf (=altijd 0)
             * onthoud de posities ([p]) met waarde = 0 (hier zit "k" gegarandeerd ook in)
-            * onthoud de kleinste ">0" waarde (vmove). zet vmove=0 als alle posities==0
+            * onthoud de kleinste ">0" waarde (vmove). vmove==undefined als alle posities==0
             * return (vmove, [p]) => vmove is de max afstand, [p] is de group die samen beweegt
             * als vmove==30000 dan is dit een separation
         */
-        for (let j in node.pieceList) {
-            let pos = [30000,30000,30000]
-            let neg = [30000,30000,30000]
-            for (let i in node.pieceList) {
-                if (i==j) continue
-                i=Number(i);j=Number(j)
-                for (let dim = 0;dim <3; dim++) {
-                    pos[dim] = Math.min(pos[dim], matrix[i*numRow + j][dim])
-                    neg[dim] = Math.min(pos[dim], matrix[j*numRow + i][dim])
+        let pos = []
+        let neg = []
+        let movelist = []
+        for (let dim = 0;dim <3; dim++) {
+            for (let k in node.pieceList) { // overloop kolom k (positieve beweging) of rij k (negatieve beweging) inclusief jezelf (=altijd 0)
+                k=Number(k)
+                let pCol=[k]
+                let pRow=[k]
+                let vMoveCol
+                let vMoveRow
+                for (let i in node.pieceList) {
+                    i=Number(i);
+                    if (i == k) continue
+                    let vCol = matrix[i*numRow + k][dim]
+                    let vRow = matrix[k*numRow + i][dim]
+                    if (vCol == 0) pCol.push(i) // onthoud de posities ([p]) met waarde = 0
+                    else vMoveCol = Math.min(vCol, vMoveCol?vMoveCol:30000) //onthoud de kleinste ">0" waarde (vmove).
+                    if (vRow == 0) pRow.push(i) // onthoud de posities ([p]) met waarde = 0
+                    else vMoveRow = Math.min(vRow, vMoveRow?vMoveRow:30000) //onthoud de kleinste ">0" waarde (vmove).
+                }
+                // we now have the results for piece k in dimension dim
+                let offset = [0,0,0]
+                
+                if (vMoveCol) { 
+                    offset[dim] = vMoveCol
+                    movelist.push({step: offset, mpl: pCol})
+                }
+                if (vMoveRow) { 
+                    offset[dim] = -1*vMoveRow
+                    movelist.push({step: offset, mpl: pRow})
                 }
             }
-            console.log(j, pos, neg)
+            console.log(movelist)
         }
         return matrix
     }

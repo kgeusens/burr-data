@@ -575,9 +575,6 @@ class Solver {
         this._assembler = new Assembler(this._cache)
     }
     get assembler() { return this._assembler }
-    solve() {
-        return solve(this.assembler.getAssemblyNode(0))
-    }
     getMovevementList(node) {
         // the shapeid can be found in the content of the pieceList
         let matrix = []
@@ -742,6 +739,14 @@ class Solver {
         }
         return movelist
     }
+    prepare(node) {
+        let movelist = this.getMovevementList(node)
+        let nodelist = []
+        for (let move of movelist) {
+            nodelist.push(new Node(node, move.mpl, move.step))
+        }
+        return nodelist
+    }
 }
 
 // Read a plain text xml file and load it (in the xmpuzzle format)
@@ -753,6 +758,7 @@ let s = new Solver(theXMPuzzle)
 console.profile()
     let r
     s.assembler.getAssemblyNode(0)
-    r = s.getMovevementList(s.assembler.getAssemblyNode(0))
+    r = s.prepare(s.assembler.getAssemblyNode(0))
+    r = s.getMovevementList(r[3])
 console.profileEnd()
 console.log(r)

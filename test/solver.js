@@ -468,7 +468,7 @@ function prepare(node) {
     let moveslist = []
     let {resultWM, pieceWM} = node.getWorldmaps()
     let mplCache = [] // 0
-    console.log("prepare", node.movingPieceList, node.moveDirection)
+    console.log("prepare", node.movingPieceList, node.moveDirection, node.id)
     for (let pidx in node.pieceList) { // 1
         for (let dim of [0,1,2]) {
             for (let minstep of [1, -1]) {
@@ -483,12 +483,12 @@ function prepare(node) {
                 // ii.
                 let maxMoves = getMaxMoves(mpl, dim, minstep)
                 let move = 2
-                console.log("mpl", mpl, "dir", dir)
+                console.log("mpl", mpl, "dir", dir, newNode.id)
                 while (move <= maxMoves) {
                     dir[dim]=minstep*move
                     if (canMove(mpl, dir, resultWM, pieceWM)) {
-                        console.log("mpl", mpl, "dir", dir)
                         let newNode = new Node(node, mpl, dir)
+                        console.log("mpl", mpl, "dir", dir, newNode.id)
                         if (mplCache.includes(newNode.id)) break // i
                         mplCache.push(newNode.id)
                         moveslist.push(newNode)
@@ -548,8 +548,8 @@ function solve(startNode) {
         // if we get here, we have exhausted this layer of the search tree
         // move to the next layer
         if (openlist[curListFront].length == 0) {
-//            console.log("Finished Level", level++)
-//            console.log(closedCache[newFront])
+            console.log("Next Level", level++)
+            console.log(closedCache[newFront])
             curListFront = 1 - curListFront;
             newListFront = 1 - newListFront;
             closed[oldFront]=[]
@@ -675,7 +675,7 @@ class Solver {
                 k=Number(k)
                 // optimization: per offset (aka per dimension loop) each piece belongs to exactly one mpl, 
                 // so we do not need to analyze pieces as soon as they have been assigned to movelist. Keep track using assigned=true
-                if (assigned[k]) continue
+//                if (assigned[k]) continue
                 let pRow=[]
                 let vMoveRow
                 for (let i in node.pieceList) {
@@ -691,6 +691,7 @@ class Solver {
                     for (let p of pRow) assigned[p] = true
                     // only process it if it is not longer than half of the pieces (eg 3 out of 6, or 3 out of 7, but not 4)
                     if (pRow.length <= Math.floor(node.pieceList.length/2)) {
+//                    if (true) {
                         // process separation
                         if (vMoveRow >= 30000) { 
                             offset[dim] = -30000
@@ -711,7 +712,7 @@ class Solver {
             for (let k = 0; k<kmax; k++) { // overloop kolom k (positieve beweging) of rij k (negatieve beweging) inclusief jezelf (=altijd 0)
                 // optimization: per offset (aka per dimension loop) each piece belongs to exactly one mpl, 
                 // so we do not need to analyze pieces as soon as they have been assigned to [p]
-                if (assigned[k]) continue
+//                if (assigned[k]) continue
                 let pCol=[]
                 let vMoveCol
                 for (let i in node.pieceList) {
@@ -727,7 +728,8 @@ class Solver {
                     for (let p of pCol) assigned[p] = true
                     // only add it to movelist if it is not longer than half of the pieces (eg 3 out of 6, or 3 out of 7, but not 4)
                     if (pCol.length <= Math.floor(node.pieceList.length/2)) {
-                        // process separation
+//                    if (true) {
+                            // process separation
                         if (vMoveCol >= 30000) { 
                             offset[dim] = 30000
                             return [{step: [...offset], mpl: pCol, separation: true}]
@@ -743,13 +745,13 @@ class Solver {
         return movelist
     }
     prepare(node) {
+//        console.log("prepare", node.movingPieceList, node.moveDirection, node.id)
         let movelist = this.getMovevementList(node)
         let nodelist = []
-        console.log("prepare", node.movingPieceList, node.moveDirection, node.id)
         for (let move of movelist) {
             let newNode = new Node(node, move.mpl, move.step, move.separation)
             nodelist.push(newNode)
-            console.log("mpl", move.mpl, "dir", move.step, newNode.id)
+//            console.log("mpl", move.mpl, "dir", move.step, newNode.id)
         }
         return nodelist
     }
@@ -794,8 +796,8 @@ class Solver {
             // if we get here, we have exhausted this layer of the search tree
             // move to the next layer
             if (openlist[curListFront].length == 0) {
-                console.log("Next Level", level++)
-                console.log(closedCache[newFront])
+//                console.log("Next Level", level++)
+//                console.log(closedCache[newFront])
                 curListFront = 1 - curListFront;
                 newListFront = 1 - newListFront;
                 closed[oldFront]=[]
@@ -811,6 +813,7 @@ class Solver {
     }
     solveAll() {
         for (let idx in this.assembler.assemblies) {
+            idx = Number(idx)
             console.log("solving assembly", idx)
             let rootNode = this.assembler.getAssemblyNode(idx)
             this.solve(rootNode)
@@ -832,8 +835,8 @@ let s = new Solver(theXMPuzzle)
 
 console.profile()
     let r
-//    s.assembler.debug(26)
-//    r = s.solve(s.assembler.getAssemblyNode(26))
+//    s.assembler.debug(20)
+//    r = s.solve(s.assembler.getAssemblyNode(20))
     r = s.solveAll()
 console.profileEnd()
-console.log(r)
+console.log(s.assembler._assemblies.length)

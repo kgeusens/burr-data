@@ -231,6 +231,12 @@ export function rotatePoint(point, idx = 0) {
   return result
 }
 
+export function rotateXYZ(x, y, z, idx=0) {
+  // point is an array [x, y, z]
+  let rotation = rotationMatrices[idx]
+  return [ Number(x*rotation[0] +y*rotation[1] +z*rotation[2]), Number(x*rotation[3] + y*rotation[4] + z*rotation[5]), Number(x*rotation[6] + y*rotation[7] + z*rotation[8])]
+}
+
 export function translate(stateObjects, vector) {
   var { x=0, y=0, z=0 } = vector
   let result={}
@@ -248,5 +254,105 @@ export function translate(stateObjects, vector) {
 export function translatePoint(point, vector) {
   // point is an array [x, y, z]
   let result = [ Number(point[0]*1 + vector[0]), Number(point[1]*1 + vector[1]), Number(point[2]*1 + vector[2])]
+  return result
+}
+
+/*export function calcRotations() {
+  let point = [ 1, 2, 3]
+  let rx = [0,1,2,3]
+  let ry = [0,4,8,12]
+  let rz = [0,16,10,20]
+  let U = {}
+  let Z = {}
+  for (let idx = 0;idx <24;idx++) {
+      let rpoint=rotatePoint(point, idx)
+      Z[rpoint.join(" ")] = idx
+  }
+  for (let z = 0;z<4;z++) {
+      for (let y = 0;y<4;y++) {
+          for (let x = 0;x<4;x++) {
+              if (x*y*z == 0) {
+                  let rpoint=rotatePoint(rotatePoint(rotatePoint(point,rx[x]),ry[y]),rz[z])
+                  if (!(rpoint.join(" ") in U)) {
+                      U[rpoint.join(" ")]=[x, y, z].join(" ")
+                  }
+                  console.log(x, y, z, rpoint, Z[rpoint.join(" ")])
+              }
+          }
+      }
+   }
+}
+*/
+
+export const SymmetryGroups = calcSymmetryGroups()
+export function calcSymmetryGroups() {
+  function merge(source,add) {
+      let merged = false
+      for (let pos in add) 
+      {
+          if (!(pos in source)) {
+              source[pos] = 1
+              merged = true
+          }
+      }
+      return merged
+  }
+  let selfSymmetries = [[0]]
+  for (let idx = 1; idx <24; idx++) {
+      let source = {}
+      source["1 2 3"]=1
+      selfSymmetries[idx]=[]
+      while (merge(source,rotate(source,idx))) {}
+      // source is now selfSymmetric for rotation idx
+      for (let rotidx=0;rotidx < 24;rotidx++) {
+          let rotatedSource=rotate(source,rotidx)
+          if (!merge(rotatedSource, source)) {
+              selfSymmetries[idx].push(rotidx)
+          }
+      }
+  }
+  return selfSymmetries
+}
+
+export const DoubleRotationMatrix = calcDoubleRotations()
+export function calcDoubleRotations() {
+  let point = [ 1, 2, 3]
+  let rx = [0,1,2,3]
+  let ry = [0,4,8,12]
+  let rz = [0,16,10,20]
+  let U = {}
+  let Z = {}
+  let matrix = []
+  for (let idx = 0;idx <24;idx++) {
+      let rpoint=rotatePoint(point, idx)
+      Z[rpoint.join(" ")] = idx
+  }
+  for (let rot1 = 0;rot1<24;rot1++) {
+      for (let rot2 = 0;rot2<24;rot2++) {
+          let rpoint=rotatePoint(rotatePoint(point,rot1),rot2)
+          matrix.push(Z[rpoint.join(" ")])
+      }
+  }
+  return matrix
+}
+
+export function calcRotationsToCheck(symmetryMembers) {
+  let skipMatrix = new Array(24)
+  let sym=0
+  let res = []
+  for (let rot = 0;rot < 24; rot++) {
+    if (!skipMatrix[rot]) {
+      for (let idx=1;idx<symmetryMembers.length;idx++) {
+        sym = symmetryMembers[idx]
+        let res = DoubleRotationMatrix[sym*24 + rot]
+        skipMatrix[res] = true
+      }
+    }
+  }
+  // now we have the ones to skip, but we need the ones to check
+  let result = []
+  for (let rot = 0;rot < 24; rot++) {
+    if (!skipMatrix[rot]) result.push(rot)
+  }
   return result
 }

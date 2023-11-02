@@ -9,22 +9,19 @@ import * as TOOLS from '../burrUtils.js'
 
 
 // Read a plain text xml file and load it (in the xmpuzzle format)
-const xmpuzzleFile = readFileSync("test.xml");
+const xmpuzzleFile = readFileSync("misusedKey.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
+console.log(theXMPuzzle.getShape(5).calcSelfSymmetries())
+console.log(TOOLS.calcRotationsToCheck([0,10]))
+console.log("done")
 //theXMPuzzle.comment.set("uri", "/puzzle/loc")
 //theXMPuzzle.problems.problem[0].shapes.shape[0].group=0
 //theXMPuzzle.problems.problem[0].shapes.shape[0].group=2
-theXMPuzzle.meta["test"]='ikel'
-theXMPuzzle.meta["moves"]=200
 //console.log(theXMPuzzle.meta["designer"])
-theXMPuzzle.meta={override: "done"}
 //console.log(theXMPuzzle)
-theXMPuzzle.meta={}
 //console.log(theXMPuzzle)//console.log(theXMPuzzle.comment)
 //console.log(theXMPuzzle.saveToJSON())
-let obj=theXMPuzzle.getShape(0).getVertexData()
 //console.log(theXMPuzzle.getShape(0))
-console.log(obj)
 //console.log(theXMPuzzle.moves)
 //console.log(theXMPuzzle.saveToXML())
 //console.log(theXMPuzzle.shapes.voxel[1].stateString)

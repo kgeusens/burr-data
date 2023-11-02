@@ -1,5 +1,5 @@
 import {XMLBuilder, XMLParser} from 'fast-xml-parser';
-import {rotate, rotatePoint, translate, translatePoint, rotateMap, translateMap} from './burrUtils.js'
+import {rotate, rotatePoint, translate, translatePoint, rotateMap, translateMap, DoubleRotationMatrix, SymmetryGroups } from './burrUtils.js'
 
 const XMLAlwaysArrayName = [
 	"voxel",
@@ -291,6 +291,7 @@ export class BoundingBox {
 			this.min[idx] = this.max[idx] = point[idx]*1
 		}
 	}
+	calcSize() { return [this.max[0] - this.min[0] + 1,this.max[1] - this.min[1] + 1,this.max[2] - this.min[2] + 1] }
 }
 
 export class Voxel {
@@ -343,6 +344,68 @@ export class Voxel {
 		this["@attributes"].x = x
 		this["@attributes"].y = y
 		this["@attributes"].z = z
+	}
+	calcSelfSymmetries() {
+		// boundingbox always has min at [0,0,0] and max at [x,y,z]
+
+		let rotSequence = [1,4,10,2,8,16,5,7,13,15,6,9,11,14,18,22]
+		let bb = this.private.worldmap.boundingBox
+		let bbsize = bb.calcSize()
+
+		let symmetryMatrix = new Array(24)
+		let symmetryMembers = [0]
+		symmetryMatrix[0] = true		
+		let rbb = new BoundingBox()
+		let rotidx = 0;
+		let next=1
+		while (next < rotSequence.length) {
+			rotidx = rotSequence[next]
+			if (symmetryMatrix[rotidx]) {next++; continue}
+			let symmetric = true
+			// calculate new boundingbox
+			let rotmin = rotatePoint(bb.min, rotidx)
+			let rotmax = rotatePoint(bb.max, rotidx)
+			let offset = [0,0,0]
+			for (let i = 0; i<3; i++) {
+				rbb.min[i] = Math.min(rotmin[i], rotmax[i]); 
+				rbb.max[i] = Math.max(rotmin[i], rotmax[i]);
+				// offset is what needs to be added to the rotated pixel to bring it into the bounding box of this voxel
+				offset[i] = bb.min[i] - rbb.min[i]
+			}
+			
+			// only continue if boxes have the same size
+			let rbbsize = rbb.calcSize()
+			if (rbbsize[0]!=bbsize[0] || rbbsize[1]!=bbsize[1] || rbbsize[2]!=bbsize[2]) {
+				symmetric=false
+				next++
+				continue
+			}
+			// now check rotations.
+			let rp
+			for (let hash of this.private.worldmap._map) {
+				rp = rotatePoint(PieceMap.hashToPoint(hash), rotidx)
+				rp[0] += offset[0]
+				rp[1] += offset[1]
+				rp[2] += offset[2]
+				if (!this.private.worldmap._map.has(PieceMap.pointToHash(rp))) {
+					symmetric=false
+					break
+				}
+			}
+			// when we get here, symmetric determines symmetry in rotidx
+			if (symmetric) {
+				let newSymmetryGroup = SymmetryGroups[rotidx]
+				// first mark all the double rotation combinations with the new group
+				for (let n of newSymmetryGroup) {
+					for (let r of symmetryMembers) {
+						let rn = DoubleRotationMatrix[r*24 + n]
+						if (!symmetryMatrix[rn]) { symmetryMatrix[rn] = true ; symmetryMembers.push(rn) }
+					}
+				}
+			}
+			next++
+		}
+		return symmetryMembers
 	}
 	get stateString() {
 		let ss = ""
@@ -1521,7 +1584,7 @@ export class PieceMap {
 		if (this._varimap.has(idx)) return 2
 		else return 0
 	}
-	getStatePoint(p) { return this.getStateHash(WorldMap.pointToHash(p)) }
+	getStatePoint(p) { return this.getStateHash(PieceMap.pointToHash(p)) }
 	clearHash(idx) { this._map.delete(idx);this._varimap.delete(idx)}
     clearPoint(p) { this.clearHash(PieceMap.pointToHash(p)) }
     hasHash(idx) { return (this._map.has(idx) || this._varimap.has(idx)) }

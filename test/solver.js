@@ -1,6 +1,6 @@
 import * as DATA from '../index.js'
 import { readFileSync} from 'fs'
-import { rotatePoint, rotate } from '../burrUtils.js'
+import { rotatePoint, rotate, calcRotationsToCheck } from '../burrUtils.js'
 import * as DLX from 'dancing-links'
 import { log } from 'console'
 
@@ -16,70 +16,21 @@ class Assembler {
         if (!this._assemblies) this._assemblies=this.assemble()
         return this._assemblies
     }
-    calcRotations() {
-        let point = [ 1, 2, 3]
-        let rx = [0,1,2,3]
-        let ry = [0,4,8,12]
-        let rz = [0,16,10,20]
-        let U = {}
-        let Z = {}
-        for (let idx = 0;idx <24;idx++) {
-            let rpoint=rotatePoint(point, idx)
-            Z[rpoint.join(" ")] = idx
-        }
-        for (let z = 0;z<4;z++) {
-            for (let y = 0;y<4;y++) {
-                for (let x = 0;x<4;x++) {
-                    if (x*y*z == 0) {
-                        let rpoint=rotatePoint(rotatePoint(rotatePoint(point,rx[x]),ry[y]),rz[z])
-                        if (!(rpoint.join(" ") in U)) {
-                            U[rpoint.join(" ")]=[x, y, z].join(" ")
-                        }
-                        console.log(x, y, z, rpoint, Z[rpoint.join(" ")])
-                    }
-                }
-            }
-
-
-         }
-    }
-    calcSelfSymmetries() {
-        function merge(source,add) {
-            let merged = false
-            for (let pos in add) 
-            {
-                if (!(pos in source)) {
-                    source[pos] = 1
-                    merged = true
-                }
-            }
-            return merged
-        }
-        let selfSymmetries = [[0]]
-        for (let idx = 1; idx <24; idx++) {
-            let source = {}
-            source["1 2 3"]=1
-            selfSymmetries[idx]=[]
-            while (merge(source,rotate(source,idx))) {}
-            // source is now selfSymmetric for rotation idx
-            for (let rotidx=0;rotidx < 24;rotidx++) {
-                let rotatedSource=rotate(source,rotidx)
-                if (!merge(rotatedSource, source)) {
-                    selfSymmetries[idx].push(rotidx)
-                }
-            }
-        }
-        console.log(selfSymmetries)
-    }
     getDLXmatrix() {
         this._assemblies = null
         let r = new DATA.VoxelInstance(
             { voxel:this._cache.resultVoxel } )
         let rbb = r.boundingBox
         let matrix = []
+        // make use of selfsymmetries of pieces
+        // if a piece is selfsymmetric, we can leave out a number of symmetries to check.
         for (let psid in this._cache._shapeMap) { // problemshapes //KG
             psid = Number(psid)
-            for (let rotidx = 0; rotidx<24;rotidx++) { // 24 rotations each
+            // we do not need to check every single rotation, but simplify based on symmetries
+            let syms = this._cache.getShapeInstance(psid, 0)._voxel.calcSelfSymmetries()
+            let rotlist = calcRotationsToCheck(syms)
+            for (let rotidx of rotlist) { // 24 rotations each
+//            for (let rotidx=0;rotidx<24;rotidx++) { // 24 rotations each
 //                console.log("psid", psid, "rot", rotidx)
                 let rotatedInstance = this._cache.getShapeInstance(psid, rotidx) // KG
                 let pbb = rotatedInstance.boundingBox
@@ -711,4 +662,17 @@ console.profile()
 //    r = s.solve(s.assembler.getAssemblyNode(20))
     r = s.solveAll()
 console.profileEnd()
+/*
+s.assembler.assemble()
+s.assembler._assemblies.forEach((a,i) => {
+    let msg = "assembly "
+    let m = []
+    a.forEach(p => m[p.data.id] = " id " + p.data.id + " rot " + p.data.rotation)
+    m.forEach(p => {
+        msg += p
+    })
+    console.log(msg, "assemblyid",i)
+})
+//console.dir(s.assembler._assemblies, {depth: null})
+*/
 console.log(s.assembler._assemblies.length)

@@ -144,9 +144,11 @@ class Assembler {
 
 // I think "Node" can be the representation of a search node in the tree
 class Node {
-    _pieceList = [] // map to shape instance, static throughout a separation tree
-    _rotationList = [] // static throughout the searchtree
-    _hotspotList = [] // static throughout the searchtree
+// Properties of root only:
+//    _pieceList = [] // map to shape instance, static throughout a separation tree
+//    _rotationList = [] // static throughout the searchtree
+//    _hotspotList = [] // static throughout the searchtree
+// Private properties for every Node
     offsetList = [] // changes throughout the searchtree.
     _id // cache for id, reset to undefined if you want it to be recalculated
 //    positionList = [] // KG: should be cached again? Not sure if this is worth it since it is only called once or twice per node
@@ -216,6 +218,7 @@ class Node {
     setFromAssembly(assembly) {
         // assembly is an array of pieces, it contains a property called "data" with info that we passed to the assembler.
         // Here we deconstruct that information into separate arrays.
+        // We are a rootNode, so set our root properties
         this._pieceList = assembly.map(v => Number(v.data.id))
         this._rotationList = assembly.map(v => Number(v.data.rotation))
         this._hotspotList = assembly.map(v => v.data.hotspot)
@@ -245,7 +248,7 @@ class Node {
                 newRoot._hotspotList = this.hotspotList.filter((v,idx) => !this.movingPieceList.includes(idx))
                 // for offsetList, we need to deep copy. Maybe best do a for loop.
                 newRoot.offsetList = []
-                for (let idx = 0; idx < this.offsetList; idx++) {
+                for (let idx = 0; idx < this.offsetList.length; idx++) {
                     if (!this.movingPieceList.includes(idx)) newRoot.offsetList.push(this.offsetList[idx].slice())
                 }
                 newNodes.push(newRoot)
@@ -262,7 +265,7 @@ class Node {
                 newRoot._hotspotList = this.hotspotList.filter((v,idx) => this.movingPieceList.includes(idx))
                 // for offsetList, we need to deep copy. Maybe best do a for loop.
                 newRoot.offsetList = []
-                for (let idx = 0; idx < this.offsetList; idx++) {
+                for (let idx = 0; idx < this.offsetList.length; idx++) {
                     // need to get the original positions of the moving pieces from our parent!
                     if (this.movingPieceList.includes(idx)) newRoot.offsetList.push(this.parent.offsetList[idx].slice())
                 }
@@ -651,9 +654,14 @@ class Solver {
                     continue
                 }
                 // this is a separation, continue to analyse the two subproblems
-                // not implemented yet
                 console.log ("SEPARATION FOUND")
-                return st.separate()
+                let newRoots = st.separate() // KG debug
+                let result
+                for (let newRoot of newRoots) {
+                    result = this.solve(newRoot)
+                    if (!result) return false
+                }
+                return true
             }
             // if we get here, we have exhausted this layer of the search tree
             // move to the next layer
@@ -670,15 +678,17 @@ class Solver {
             }
         }
 //        console.log("DEAD END")
+
         // the entire tree has been processed, no separation found
-        return null
+        return false
     }
     solveAll() {
         for (let idx in this.assembler.assemblies) {
             idx = Number(idx)
             console.log("solving assembly", idx)
             let rootNode = this.assembler.getAssemblyNode(idx)
-            this.solve(rootNode)
+            let result = this.solve(rootNode)
+            if (result) console.log("SOLUTION FOUND")
         }
     }
     debug(id) {

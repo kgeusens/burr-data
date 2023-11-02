@@ -144,14 +144,14 @@ class Assembler {
 
 // I think "Node" can be the representation of a search node in the tree
 class Node {
-    pieceList = [] // map to shape instance
+    pieceList = [] // map to shape instance, static throughout a separation tree
     rotationList = [] // static throughout the searchtree
     hotspotList = [] // static throughout the searchtree
     offsetList = [] // changes throughout the searchtree.
 //    positionList = [] // calculated based on hotspot and offset
     id // (key) id = the concatenation of positionList, but normalized to the first element at [0,0,0]
-    #parent=null
-    #root=null
+    #parent=null // parent of this separation tree. null if top of search tree
+    #root=null // root of the separation tree
     isSeparation // did we remove the pieces from the puzzle
     movingPieceList // pieces that needed to move to get here from the parent
     moveDirection // the step that the pieces needed to make to get here ;)
@@ -165,19 +165,23 @@ class Node {
         if (parentObject) {
             this.#root = parentObject.root
             this.#parent = parentObject
-            this.pieceList = parentObject.pieceList
-            this.rotationList = parentObject.rotationList
-            this.hotspotList = parentObject.hotspotList
+            this.pieceList = this.root.pieceList
+            this.rotationList = this.root.rotationList
+            this.hotspotList = this.root.hotspotList
             this.isSeparation = separation
-            for (let idx in parentObject.offsetList) this.offsetList[idx] = [...parentObject.offsetList[idx]]
+            // KG : currently an offsetList ia an array of arrays. Maybe a flat array will speed things up?
+            // also requires us to do a deep copy of offsetlist for every node, where a flat copy is more efficient!!
+            for (let idx in parentObject.offsetList) this.offsetList[idx] = parentObject.offsetList[idx].slice()
             if (movingPieceList) {
-                this.movingPieceList = [...movingPieceList]
-                this.moveDirection = [...translation]
-                movingPieceList.forEach((v, idx) =>{
+                this.movingPieceList = movingPieceList.slice()
+                this.moveDirection = translation.slice()
+                let v
+                for (let i=0;i<movingPieceList.length;i++) {
+                    v = movingPieceList[i]
                     this.offsetList[v][0] += translation[0]
                     this.offsetList[v][1] += translation[1]
                     this.offsetList[v][2] += translation[2]
-                })
+                }
             }
             let pl = this.positionList
             let firstPos = pl[0]

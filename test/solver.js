@@ -144,14 +144,16 @@ class Assembler {
 
 // I think "Node" can be the representation of a search node in the tree
 class Node {
-    pieceList = [] // map to shape instance, static throughout a separation tree
-    rotationList = [] // static throughout the searchtree
-    hotspotList = [] // static throughout the searchtree
+    _pieceList = [] // map to shape instance, static throughout a separation tree
+    _rotationList = [] // static throughout the searchtree
+    _hotspotList = [] // static throughout the searchtree
     offsetList = [] // changes throughout the searchtree.
-//    positionList = [] // calculated based on hotspot and offset
-    id // (key) id = the concatenation of positionList, but normalized to the first element at [0,0,0]
-    #parent=null // parent of this separation tree. null if top of search tree
-    #root=null // root of the separation tree
+    _id // cache for id, reset to undefined if you want it to be recalculated
+//    positionList = [] // KG: should be cached again? Not sure if this is worth it since it is only called once or twice per node
+//    reverse for id: maybe it should not be cached but rather calculated, since it is only used once or twice in the lifecycle of node
+//    id // (key) id = the concatenation of positionList, but normalized to the first element at [0,0,0]
+    _parent=null // parent of this separation tree. null if top of search tree
+    _root=null // root of the separation tree
     isSeparation // did we remove the pieces from the puzzle
     movingPieceList // pieces that needed to move to get here from the parent
     moveDirection // the step that the pieces needed to make to get here ;)
@@ -163,11 +165,11 @@ class Node {
     // parent : undefined by default, but needed when this is used as a node in the solution tree. Points back to the previous step.
     constructor(parentObject, movingPieceList, translation = [0,0,0], separation = false) {
         if (parentObject) {
-            this.#root = parentObject.root
-            this.#parent = parentObject
-            this.pieceList = this.root.pieceList
-            this.rotationList = this.root.rotationList
-            this.hotspotList = this.root.hotspotList
+            this._root = parentObject.root
+            this._parent = parentObject
+//            this.pieceList = this.root.pieceList
+//            this.rotationList = this.root.rotationList
+//            this.hotspotList = this.root.hotspotList
             this.isSeparation = separation
             // KG : currently an offsetList ia an array of arrays. Maybe a flat array will speed things up?
             // also requires us to do a deep copy of offsetlist for every node, where a flat copy is more efficient!!
@@ -183,35 +185,90 @@ class Node {
                     this.offsetList[v][2] += translation[2]
                 }
             }
+            /*
             let pl = this.positionList
             let firstPos = pl[0]
             this.id = "id"
             pl.forEach(v => {this.id += " " + (v[0] - firstPos[0]) + " " + (v[1] - firstPos[1])+" "+(v[2] - firstPos[2])})
+            */
         }
         else {
-            this.#root = this
+            this._root = this
         }
     }
-    get root() { return this.#root}
-    get parent() { return this.#parent}
+    get root() { return this._root}
+    get parent() { return this._parent}
+    get pieceList() { return this._root._pieceList }
+    get rotationList() { return this._root._rotationList }
+    get hotspotList() { return this._root._hotspotList }
     get positionList() { 
         return this.hotspotList.map((v, idx) => [v[0] + this.offsetList[idx][0],v[1] + this.offsetList[idx][1],v[2] + this.offsetList[idx][2]])
+    }
+    get id() { 
+        if (this._id) return this._id
+        else {
+            let firstPos = this.positionList[0]
+            this._id = "id"
+            this.positionList.forEach(v => {this._id += " " + (v[0] - firstPos[0]) + " " + (v[1] - firstPos[1])+" "+(v[2] - firstPos[2])})
+        }
+        return this._id
     }
     setFromAssembly(assembly) {
         // assembly is an array of pieces, it contains a property called "data" with info that we passed to the assembler.
         // Here we deconstruct that information into separate arrays.
-        this.pieceList = assembly.map(v => Number(v.data.id))
-        this.rotationList = assembly.map(v => Number(v.data.rotation))
-        this.hotspotList = assembly.map(v => v.data.hotspot)
+        this._pieceList = assembly.map(v => Number(v.data.id))
+        this._rotationList = assembly.map(v => Number(v.data.rotation))
+        this._hotspotList = assembly.map(v => v.data.hotspot)
         this.offsetList = assembly.map(v => [v.data.offset[0], v.data.offset[1], v.data.offset[2]])
         // ID = the concatenation of the positionList, but normalized to the first element at [0,0,0]
-        let firstPos = this.positionList[0]
-        this.id = "id " + this.positionList.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).flat().join(" ")
+//        let firstPos = this.positionList[0]
+//        this.id = "id " + this.positionList.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).flat().join(" ")
     }
-    debug() {
-        for (let idx in this.worldmapList) {
-            console.log("debug node: idx", idx)
-            this.worldmapList[idx].translateToClone(this.offsetList[idx])._map.forEach((val, hash) => console.log(hash, DATA.GroupMap.hashToPoint(hash)))
+    separate() {
+        // returns an array of new rootNodes
+        // check if this is a separation.
+        // if not : return an empty array
+        // if it is, return 2 new rootnodes for the solver to work with
+        let newNodes = []
+        if (this.isSeparation) {
+            // only add a new rootNode if it will contain more than 1 piece
+            if ((this.pieceList.length - this.movingPieceList.length) > 1) {
+                // so at this point, we know we are a separation
+                // movingPieceList and movingDirection tells us what to work with
+                let newRoot = new Node()
+                newRoot._parent = this
+                newRoot._root = newRoot
+                // only keep the pieces that are not moving. Filter out the moving pieces
+                newRoot._pieceList = this.pieceList.filter((v,idx) => !this.movingPieceList.includes(idx))
+                // same for the other lists
+                newRoot._rotationList = this.rotationList.filter((v,idx) => !this.movingPieceList.includes(idx))
+                newRoot._hotspotList = this.hotspotList.filter((v,idx) => !this.movingPieceList.includes(idx))
+                // for offsetList, we need to deep copy. Maybe best do a for loop.
+                newRoot.offsetList = []
+                for (let idx = 0; idx < this.offsetList; idx++) {
+                    if (!this.movingPieceList.includes(idx)) newRoot.offsetList.push(this.offsetList[idx].slice())
+                }
+                newNodes.push(newRoot)
+            }
+            if ((this.movingPieceList.length) > 1) {
+                let newRoot = new Node()
+                newRoot._parent = this
+                newRoot._root = newRoot
+                // KG: we can combine below filter loops into 1 loop for speed if needed, and save on calls to includes
+                // only keep the pieces that are moving. Filter out the static pieces
+                newRoot._pieceList = this.pieceList.filter((v,idx) => this.movingPieceList.includes(idx))
+                // same for the other lists
+                newRoot._rotationList = this.rotationList.filter((v,idx) => this.movingPieceList.includes(idx))
+                newRoot._hotspotList = this.hotspotList.filter((v,idx) => this.movingPieceList.includes(idx))
+                // for offsetList, we need to deep copy. Maybe best do a for loop.
+                newRoot.offsetList = []
+                for (let idx = 0; idx < this.offsetList; idx++) {
+                    // need to get the original positions of the moving pieces from our parent!
+                    if (this.movingPieceList.includes(idx)) newRoot.offsetList.push(this.parent.offsetList[idx].slice())
+                }
+                newNodes.push(newRoot)
+            }
+            return newNodes
         }
     }
 }
@@ -503,7 +560,6 @@ class Solver {
                     // we have a partition
                     // only process it if it is not longer than half of the pieces (eg 3 out of 6, or 3 out of 7, but not 4)
                     if (pRow.length <= Math.floor(node.pieceList.length/2)) {
-//                    if (true) {
                         // process separation
                         if (vMoveRow >= 30000) { 
                             offset[dim] = -30000
@@ -535,7 +591,6 @@ class Solver {
                     // we have a partition
                     // only add it to movelist if it is not longer than half of the pieces (eg 3 out of 6, or 3 out of 7, but not 4)
                     if (pCol.length <= Math.floor(node.pieceList.length/2)) {
-//                    if (true) {
                             // process separation
                         if (vMoveCol >= 30000) { 
                             offset[dim] = 30000
@@ -598,7 +653,7 @@ class Solver {
                 // this is a separation, continue to analyse the two subproblems
                 // not implemented yet
                 console.log ("SEPARATION FOUND")
-                return st
+                return st.separate()
             }
             // if we get here, we have exhausted this layer of the search tree
             // move to the next layer

@@ -414,9 +414,9 @@ class Solver {
                             // (i,j) <= (i,k) + (k,j)
                             if (k == j) continue 
                             i=Number(i);j=Number(j);k=Number(k)
-                            let ijStart = j*numRow + i
-                            let ikStart = k*numRow + i
-                            let kjStart = j*numRow + k
+                            let ijStart = j*numRow + i*3
+                            let ikStart = k*numRow + i*3
+                            let kjStart = j*numRow + k*3
                             for (let dim = 0; dim <=2; dim++) {
                                 let min = matrix[ikStart + dim] + matrix[kjStart + dim]
                                 if (min < matrix[ijStart + dim]) {
@@ -427,7 +427,7 @@ class Solver {
                                     // else we keep 'again' on false and just continue
                                     if (!again) {
                                         for (let a=0;a<i;a++) {
-                                            if ( matrix[j*numRow + a + dim] >  matrix[i*numRow + a + dim] + matrix[ijStart + dim]) {
+                                            if ( matrix[j*numRow + a*3 + dim] >  matrix[i*numRow + a*3 + dim] + matrix[ijStart + dim]) {
                                                 again = true
                                                 break
                                             }
@@ -435,7 +435,7 @@ class Solver {
                                     }
                                     if (!again) {
                                         for (let b=0;b<j;b++) {
-                                            if ( matrix[b*numRow + i + dim] >  matrix[b*numRow + j + dim] + matrix[ijStart + dim]) { 
+                                            if ( matrix[b*numRow + i*3 + dim] >  matrix[b*numRow + j*3 + dim] + matrix[ijStart + dim]) { 
                                                 again = true
                                                 break
                                             }
@@ -508,7 +508,7 @@ class Solver {
                 let vMoveRow
                 for (let i=0;i<nPieces;i++) {
                     i=Number(i);
-                    let vRow = matrix[k*numRow + i + dim]
+                    let vRow = matrix[k*numRow + i*3 + dim]
                     if (vRow == 0) pRow.push(i) // onthoud de posities ([p]) met waarde = 0
                     else vMoveRow = Math.min(vRow, vMoveRow?vMoveRow:30000) //onthoud de kleinste ">0" waarde (vmove).
                 }
@@ -539,7 +539,7 @@ class Solver {
                 let vMoveCol
                 for (let i=0;i<nPieces;i++) {
                     i=Number(i);
-                    let vCol = matrix[i*numRow + k + dim]
+                    let vCol = matrix[i*numRow + k*3 + dim]
                     if (vCol == 0) {pCol.push(i)} // onthoud de posities ([p]) met waarde = 0
                     else vMoveCol = Math.min(vCol, vMoveCol?vMoveCol:30000) //onthoud de kleinste ">0" waarde (vmove).
                 }
@@ -628,9 +628,8 @@ class Solver {
         return false
     }
     solveAll() {
-//        for (let idx=0; idx<this.assembler.assemblies; idx++) {
+//        for (let idx=0; idx<this.assembler.assemblies.length; idx++) {
         for (let idx=0; idx<2000; idx++) {
-//        for (let idx in this.assembler.assemblies) {
             idx = Number(idx)
             console.log("solving assembly", idx)
             let rootNode = this.assembler.getAssemblyNode(idx)
@@ -658,7 +657,7 @@ s.assembler.assemble()
 console.log(s.assembler._assemblies.length)
 console.profile()
     let r
-//    s.assembler.debug(20)
+    //    s.assembler.debug(20)
 //    r = s.solve(s.assembler.getAssemblyNode(1337))
     r = s.solveAll()
 console.profileEnd()

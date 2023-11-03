@@ -387,7 +387,17 @@ export class Voxel {
 				rp[0] += offset[0]
 				rp[1] += offset[1]
 				rp[2] += offset[2]
-				if (!this.private.worldmap._map.has(PieceMap.pointToHash(rp))) {
+				if (!this.private.worldmap.hasPoint(rp)) {
+					symmetric=false
+					break
+				}
+			}
+			for (let hash of this.private.worldmap._varimap) {
+				rp = rotatePoint(PieceMap.hashToPoint(hash), rotidx)
+				rp[0] += offset[0]
+				rp[1] += offset[1]
+				rp[2] += offset[2]
+				if (!this.private.worldmap.hasPoint(rp)) {
 					symmetric=false
 					break
 				}

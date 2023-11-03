@@ -657,8 +657,8 @@ class Solver {
         return true
     }
     solveAll() {
-        for (let idx=0; idx<this.assembler.assemblies.length; idx++) {
-//        for (let idx=0; idx<2000; idx++) {
+//        for (let idx=0; idx<this.assembler.assemblies.length; idx++) {
+        for (let idx=0; idx<22016; idx++) {
             idx = Number(idx)
             if (DEBUG) console.log("solving assembly", idx)
             let rootNode = this.assembler.getAssemblyNode(idx)
@@ -678,8 +678,8 @@ class Solver {
 // Read a plain text xml file and load it (in the xmpuzzle format)
 let DEBUG=false
 
-//const xmpuzzleFile = readFileSync("two face 3.xml");
-const xmpuzzleFile = readFileSync("misusedKey.xml");
+const xmpuzzleFile = readFileSync("two face 3.xml");
+//const xmpuzzleFile = readFileSync("misusedKey.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 
 let s = new Solver(theXMPuzzle)

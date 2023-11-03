@@ -356,3 +356,7 @@ export function calcRotationsToCheck(symmetryMembers) {
   }
   return result
 }
+
+export function combineSelfSymmetries(resultSyms, pieceSyms) {
+  // I think we can just make the union of the symmetries, and then do calRotationsToCheck
+}

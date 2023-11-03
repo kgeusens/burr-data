@@ -386,17 +386,20 @@ class Solver {
         function calcCutlerMatrix(node, cache) {
             // needs the movementcache
             // the shapeid can be found in the content of the pieceList
+            let nPieces = node.pieceList.length
             let matrix = []
-            let numRow = node.pieceList.length
+//            let matrix = new Array(nPieces*nPieces*3)
+//            let numRow = nPieces
+            let numRow = nPieces*3
             // pieceList maps to the shapeMap idx
-            for (let j in node.pieceList) { 
-                for (let i in node.pieceList) {
-                    if (i==j) matrix.push([0,0,0])
+            for (let j=0;j<nPieces;j++) { 
+                for (let i=0;i<nPieces;i++) {
+                    if (i==j) matrix.push(0,0,0)
                     else {
                         let s1 = node.pieceList[i]; let r1 = node.rotationList[i];let o1 = node.offsetList[i]
                         let s2 = node.pieceList[j]; let r2 = node.rotationList[j];let o2 = node.offsetList[j]
                         let maxMoves = cache.getMaxValues(s1, r1, s2, r2, o2[0] - o1[0], o2[1] - o1[1], o2[2] - o1[2])
-                        matrix.push(maxMoves)
+                        matrix.push(maxMoves[0], maxMoves[1], maxMoves[2])
                     }
                 }
             }
@@ -404,27 +407,27 @@ class Solver {
             let again = true
             while (again) {
                 again = false
-                for (let j in node.pieceList) {
-                    for (let i in node.pieceList) {
+                for (let j=0;j<nPieces;j++) { 
+                    for (let i=0;i<nPieces;i++) {
                         if (i == j) continue // diagonal is 0, nothing to do
-                        for ( let k in node.pieceList ) {
+                        for ( let k=0;k<nPieces;k++ ) {
                             // (i,j) <= (i,k) + (k,j)
                             if (k == j) continue 
                             i=Number(i);j=Number(j);k=Number(k)
-                            let ij = matrix[j*numRow + i]
-                            let ik = matrix[k*numRow + i]
-                            let kj = matrix[j*numRow + k]
+                            let ijStart = j*numRow + i
+                            let ikStart = k*numRow + i
+                            let kjStart = j*numRow + k
                             for (let dim = 0; dim <=2; dim++) {
-                                let min = ik[dim] + kj[dim]
-                                if (min < ij[dim]) {
-                                    ij[dim] = min
+                                let min = matrix[ikStart + dim] + matrix[kjStart + dim]
+                                if (min < matrix[ijStart + dim]) {
+                                    matrix[ijStart + dim] = min
                                     // optimize: check if this update impacts already updated values
                                     // if ai + ij < aj for any a < i then run again
                                     // if ij + jb < ib for any b < j then run again
                                     // else we keep 'again' on false and just continue
                                     if (!again) {
                                         for (let a=0;a<i;a++) {
-                                            if ( matrix[j*numRow + a][dim] >  matrix[i*numRow + a][dim] + ij[dim]) {
+                                            if ( matrix[j*numRow + a + dim] >  matrix[i*numRow + a + dim] + matrix[ijStart + dim]) {
                                                 again = true
                                                 break
                                             }
@@ -432,7 +435,7 @@ class Solver {
                                     }
                                     if (!again) {
                                         for (let b=0;b<j;b++) {
-                                            if ( matrix[b*numRow + i][dim] >  matrix[b*numRow + j][dim] + ij[dim]) { 
+                                            if ( matrix[b*numRow + i + dim] >  matrix[b*numRow + j + dim] + matrix[ijStart + dim]) { 
                                                 again = true
                                                 break
                                             }
@@ -495,16 +498,17 @@ class Solver {
             * als vmove==30000 dan is dit een separation en mag je stoppen (return only the separation)
         */
         let movelist = []
-        let numRow = node.pieceList.length
+        let nPieces = node.pieceList.length
+        let numRow = nPieces * 3
         // Rows first
         for (let dim = 0;dim <3; dim++) {
-            for (let k = 0; k<node.pieceList.length; k++) { // overloop kolom k (positieve beweging) of rij k (negatieve beweging) inclusief jezelf (=altijd 0)
+            for (let k = 0; k<nPieces; k++) { // overloop kolom k (positieve beweging) of rij k (negatieve beweging) inclusief jezelf (=altijd 0)
                 k=Number(k)
                 let pRow=[]
                 let vMoveRow
-                for (let i in node.pieceList) {
+                for (let i=0;i<nPieces;i++) {
                     i=Number(i);
-                    let vRow = matrix[k*numRow + i][dim]
+                    let vRow = matrix[k*numRow + i + dim]
                     if (vRow == 0) pRow.push(i) // onthoud de posities ([p]) met waarde = 0
                     else vMoveRow = Math.min(vRow, vMoveRow?vMoveRow:30000) //onthoud de kleinste ">0" waarde (vmove).
                 }
@@ -513,7 +517,7 @@ class Solver {
                 if (vMoveRow) {
                     // we have a partition
                     // only process it if it is not longer than half of the pieces (eg 3 out of 6, or 3 out of 7, but not 4)
-                    if (pRow.length <= Math.floor(node.pieceList.length/2)) {
+                    if (pRow.length <= Math.floor(nPieces/2)) {
                         // process separation
                         if (vMoveRow >= 30000) { 
                             offset[dim] = -30000
@@ -529,13 +533,13 @@ class Solver {
         }
         // Columns next
         for (let dim = 0;dim <3; dim++) {
-            let kmax = node.pieceList.length
+            let kmax = nPieces
             for (let k = 0; k<kmax; k++) { // overloop kolom k (positieve beweging) of rij k (negatieve beweging) inclusief jezelf (=altijd 0)
                 let pCol=[]
                 let vMoveCol
-                for (let i in node.pieceList) {
+                for (let i=0;i<nPieces;i++) {
                     i=Number(i);
-                    let vCol = matrix[i*numRow + k][dim]
+                    let vCol = matrix[i*numRow + k + dim]
                     if (vCol == 0) {pCol.push(i)} // onthoud de posities ([p]) met waarde = 0
                     else vMoveCol = Math.min(vCol, vMoveCol?vMoveCol:30000) //onthoud de kleinste ">0" waarde (vmove).
                 }
@@ -544,7 +548,7 @@ class Solver {
                 if (vMoveCol) { 
                     // we have a partition
                     // only add it to movelist if it is not longer than half of the pieces (eg 3 out of 6, or 3 out of 7, but not 4)
-                    if (pCol.length <= Math.floor(node.pieceList.length/2)) {
+                    if (pCol.length <= Math.floor(nPieces/2)) {
                             // process separation
                         if (vMoveCol >= 30000) { 
                             offset[dim] = 30000

@@ -593,68 +593,79 @@ class Solver {
         return movelist
     }
     solve(startNode) {
-        let curListFront = 0;
-        let newListFront = 1;
-        let openlist = [[], []]
-        let closedCache = []
-    
-        closedCache.push(startNode.id)
-        openlist[curListFront].push(startNode)
-    
+        let parking = []
+        parking.push(startNode)
+
         let node
-        let level = 1
-        while (!openlist[curListFront].length == 0) {
-            node = openlist[curListFront].pop()
-            let st
-            let movesList = this.prepare(node)
-            while (st = movesList.pop()) {
-                // st = {mpl, step, separation, parent}
-                if (closedCache.includes(st.parent.getNextID(st.mpl, st.step))) {
-                    continue
+        let level
+        let closedCache = [] // a single global cache
+        let separated
+        while (parking.length > 0) {
+            startNode = parking.pop()
+            let curListFront = 0;
+            let newListFront = 1;
+            let openlist = [[], []]
+            separated = false
+        
+            closedCache.push(startNode.id)
+            openlist[curListFront].push(startNode)
+        
+            level = 1
+            while (!openlist[curListFront].length == 0 && !separated) {
+                node = openlist[curListFront].pop()
+                let st
+                let movesList = this.prepare(node)
+                while ((st = movesList.pop()) && !separated) {
+                    // st = {mpl, step, separation, parent}
+                    if (closedCache.includes(st.parent.getNextID(st.mpl, st.step))) {
+                        continue
+                    }
+                    st = new Node(st.parent, st.mpl, st.step, st.separation)
+                    // never seen this node before, add it to cache
+                    closedCache.push(st.id)
+                    // check for separation
+                    if (!st.isSeparation) {
+                        // it is not a separation, so add it for later analysis and continue to next node
+                        openlist[newListFront].push(st)
+                        continue
+                    }
+                    else {
+                        // this is a separation, put the sub problems on the parking lot and contintue to the next one on the parking
+                        separated = true // FLAG STOP TO GO TO NEXT ON PARKING
+                        if (DEBUG) console.log ("SEPARATION FOUND level", level)
+                        for (let newRoot of st.separate()) {
+                            parking.push(newRoot)
+                        }
+                    }
                 }
-                st = new Node(st.parent, st.mpl, st.step, st.separation)
-                // never seen this node before, add it to cache
-                closedCache.push(st.id)
-                // check for separation
-                if (!st.isSeparation) {
-                    // it is not a separation, so add it for later analysis and continue to next node
-                    openlist[newListFront].push(st)
-                    continue
+                //
+                if (openlist[curListFront].length == 0 && !separated) {
+                    if (DEBUG) console.log("Next Level", level++)
+    //                console.log(closedCache[newFront])
+                    curListFront = 1 - curListFront;
+                    newListFront = 1 - newListFront;
                 }
-                // this is a separation, continue to analyse the two subproblems
-                if (DEBUG) console.log ("SEPARATION FOUND level", level)
-                let newRoots = st.separate()
-                let result
-                for (let newRoot of newRoots) {
-                    result = this.solve(newRoot)
-                    if (!result) return false
-                }
-                return true
             }
-            // if we get here, we have exhausted this layer of the search tree
-            // move to the next layer
-            if (openlist[curListFront].length == 0) {
-                if (DEBUG) console.log("Next Level", level++)
-//                console.log(closedCache[newFront])
-                curListFront = 1 - curListFront;
-                newListFront = 1 - newListFront;
+            // if we get here, we can check the separated flag to see if it is a dead end, or a separation
+            // if it is a separation, continue to the next on the parking, else return false
+            if (!separated) {
+                if (DEBUG) console.log("DEAD END level", level)
+                return false
             }
         }
-        if (DEBUG) console.log("DEAD END level", level)
-
-        // the entire tree has been processed, no separation found
-        return false
+        // SUCCESS
+        return true
     }
     solveAll() {
-//        for (let idx=0; idx<this.assembler.assemblies.length; idx++) {
-        for (let idx=0; idx<2000; idx++) {
+        for (let idx=0; idx<this.assembler.assemblies.length; idx++) {
+//        for (let idx=0; idx<2000; idx++) {
             idx = Number(idx)
             if (DEBUG) console.log("solving assembly", idx)
             let rootNode = this.assembler.getAssemblyNode(idx)
             let result = this.solve(rootNode)
 //            if (result && DEBUG) console.log("SOLUTION FOUND")
             if (result) console.log("SOLUTION FOUND")
-}
+        }
     }
     debug(id) {
         let rootNode = this.assembler.getAssemblyNode(id)
@@ -667,8 +678,8 @@ class Solver {
 // Read a plain text xml file and load it (in the xmpuzzle format)
 let DEBUG=false
 
-const xmpuzzleFile = readFileSync("two face 3.xml");
-//const xmpuzzleFile = readFileSync("misusedKey.xml");
+//const xmpuzzleFile = readFileSync("two face 3.xml");
+const xmpuzzleFile = readFileSync("misusedKey.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 
 let s = new Solver(theXMPuzzle)

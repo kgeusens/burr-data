@@ -1529,6 +1529,7 @@ export class PieceMap {
         return [x-PieceMap.worldOrigin,y-PieceMap.worldOrigin,z-PieceMap.worldOrigin]
     }
     static pointToHash(point) {return (PieceMap.worldOriginIndex + PieceMap.worldMax*(point[2]*PieceMap.worldMax + point[1]) + point[0]) }
+    static XYZToHash(x,y,z) {return (PieceMap.worldOriginIndex + PieceMap.worldMax*(z*PieceMap.worldMax + y) + x) }
     
 	constructor(source = {}, copy=true ) {
 		let { _map, _varimap} = source

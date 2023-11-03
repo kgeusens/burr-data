@@ -129,6 +129,22 @@ class Node {
             this._root = this
         }
     }
+    getNextID(movingPieceList, translation) {
+        let nPieces = this.pieceList.length
+        let offsetList = this._offsetList.slice()
+        let v
+        for (let i=0;i<movingPieceList.length;i++) {
+            v = movingPieceList[i]*3
+            offsetList[v] += translation[0]
+            offsetList[v+1] += translation[1]
+            offsetList[v+2] += translation[2]
+        }
+        let id = "id"
+        for (let idx = 0;idx < nPieces;idx++) {
+            id += " " + (offsetList[idx*3] - offsetList[0]) + " " + (offsetList[idx*3+1] - offsetList[1]) + " " + (offsetList[idx*3 + 2] - offsetList[2])
+        }
+        return id
+    }
     get root() { return this._root}
     get parent() { return this._parent}
     get pieceList() { return this._root._pieceList }
@@ -153,9 +169,12 @@ class Node {
         this._pieceList = assembly.map(v => Number(v.data.id))
         this._rotationList = assembly.map(v => Number(v.data.rotation))
         this._hotspotList=[]
-        assembly.forEach(v => this._hotspotList.push(v.data.hotspot[0], v.data.hotspot[1], v.data.hotspot[2]))
         this._offsetList = []
-        assembly.forEach(v => this._offsetList.push(v.data.offset[0], v.data.offset[1], v.data.offset[2]))
+        assembly.forEach(v => {
+            this._hotspotList.push(v.data.hotspot[0], v.data.hotspot[1], v.data.hotspot[2])
+            this._offsetList.push(v.data.offset[0], v.data.offset[1], v.data.offset[2])
+        })
+//        assembly.forEach(v => this._offsetList.push(v.data.offset[0], v.data.offset[1], v.data.offset[2]))
         this._id = undefined
     }
     separate() {
@@ -248,14 +267,16 @@ class MovementCache {
         // therefor we only cache positive directions.
         // If ever you need to lookup a negative direction, just swap the positions of the 2 pieces before lookup
         let hash = id1 + " " + rot1 + " " + id2 + " " + rot2 + " " + dx + " " + dy + " " + dz
-        let s1 = this.getShapeInstance(id1, rot1)
-        let s2 = this.getShapeInstance(id2, rot2)
         let moves = this._movementCache[hash]
         if (!moves) {
+            let s1 = this.getShapeInstance(id1, rot1)
+            let s2 = this.getShapeInstance(id2, rot2)
             let intersection = new DATA.BoundingBox()
             let union = new DATA.BoundingBox()
             let bb1 = s1.boundingBox
             let bb2 = s2.boundingBox
+            let s1wm = s1._worldMap
+            let s2wm = s2._worldMap
             let mx=32000; let my=32000; let mz=32000
             intersection.min[0] = Math.max(bb1.min[0], bb2.min[0] + dx)
             intersection.min[1] = Math.max(bb1.min[1], bb2.min[1] + dy)
@@ -269,16 +290,19 @@ class MovementCache {
             union.max[0] = Math.max(bb1.max[0], bb2.max[0] + dx)
             union.max[1] = Math.max(bb1.max[1], bb2.max[1] + dy)
             union.max[2] = Math.max(bb1.max[2], bb2.max[2] + dz)
-
-            for (let y = intersection.min[1]; y<=intersection.max[1];y++) {
-                for (let z = intersection.min[2]; z<=intersection.max[2];z++) {
+            let yStart=intersection.min[1];let yStop=intersection.max[1]
+            let zStart=intersection.min[2];let zStop=intersection.max[2]
+            let xStart=union.min[0];let xStop=union.max[0]
+            for (let y = yStart; y<=yStop;y++) {
+                for (let z = zStart; z<=zStop;z++) {
                     let gap = 32000
-                    for (let x = union.min[0]; x<=union.max[0];x++) { 
-                        if (s1.worldmap.hasPoint([x, y, z])) { // s1 is filled
+                    for (let x = xStart; x<=xStop;x++) { 
+                        if (s1wm.hasHash(DATA.PieceMap.XYZToHash(x, y, z))) 
+                        {
                             gap = 0
                         }
                         else 
-                        if (s2.worldmap.hasPoint([x-dx, y-dy,z-dz])) { // s1 is empty, s2 is filled
+                        if (s2wm.hasHash(DATA.PieceMap.XYZToHash(x-dx, y-dy,z-dz))) {
                             if (gap < mx) mx = gap
                         }
                         else { // s1 is empty, s2 is empty
@@ -287,15 +311,19 @@ class MovementCache {
                     }
                 }
             }
-            for (let x = intersection.min[0]; x<=intersection.max[0];x++) {
-                for (let z = intersection.min[2]; z<=intersection.max[2];z++) {
+            xStart=intersection.min[0];xStop=intersection.max[0]
+            zStart=intersection.min[2];zStop=intersection.max[2]
+            yStart=union.min[1];yStop=union.max[1]
+            for (let x = xStart; x<=xStop;x++) {
+                for (let z = zStart; z<=zStop;z++) {
                     let gap = 32000
-                    for (let y = union.min[1]; y<=union.max[1];y++) {
-                        if (s1.worldmap.hasPoint([x, y, z])) { // s1 is filled
+                    for (let y = yStart; y<=yStop;y++) {
+                        if (s1wm.hasHash(DATA.PieceMap.XYZToHash(x, y, z))) 
+                        {
                             gap = 0
                         }
                         else 
-                        if (s2.worldmap.hasPoint([x-dx, y-dy,z-dz])) { // s1 is empty, s2 is filled
+                        if (s2wm.hasHash(DATA.PieceMap.XYZToHash(x-dx, y-dy,z-dz))) {
                             if (gap < my) my = gap
                         }
                         else { // s1 is empty, s2 is empty
@@ -304,15 +332,19 @@ class MovementCache {
                     }
                 }
             }
-            for (let x = intersection.min[0]; x<=intersection.max[0];x++) {
-                for (let y = intersection.min[1]; y<=intersection.max[1];y++) {
+            xStart=intersection.min[0];xStop=intersection.max[0]
+            yStart=intersection.min[1];yStop=intersection.max[1]
+            zStart=union.min[2];zStop=union.max[2]
+            for (let x = xStart; x<=xStop;x++) {
+                for (let y = yStart; y<=yStop;y++) {
                     let gap = 32000
-                    for (let z = union.min[2]; z<=union.max[2];z++) {
-                        if (s1.worldmap.hasPoint([x, y, z])) { // s1 is filled
+                    for (let z = zStart; z<=zStop;z++) {
+                        if (s1wm.hasHash(DATA.PieceMap.XYZToHash(x, y, z))) 
+                        {
                             gap = 0
                         }
                         else 
-                        if (s2.worldmap.hasPoint([x-dx, y-dy,z-dz])) { // s1 is empty, s2 is filled
+                        if (s2wm.hasHash(DATA.PieceMap.XYZToHash(x-dx, y-dy,z-dz))) {
                             if (gap < mz) mz = gap
                         }
                         else { // s1 is empty, s2 is empty
@@ -507,11 +539,11 @@ class Solver {
                         // process separation
                         if (vMoveRow >= 30000) { 
                             offset[dim] = -30000
-                            return [{step: [...offset], mpl: pRow, separation: true}]
+                            return [{step: [...offset], mpl: pRow, separation: true, parent:node}]
                         }
                         for (let step = 1;step <= vMoveRow;step++) {
                             offset[dim] = -1*step
-                            movelist.push({step: [...offset], mpl: pRow, separation: false})
+                            movelist.push({step: [...offset], mpl: pRow, separation: false, parent:node})
                         }
                     }
                 }
@@ -538,11 +570,11 @@ class Solver {
                             // process separation
                         if (vMoveCol >= 30000) { 
                             offset[dim] = 30000
-                            return [{step: [...offset], mpl: pCol, separation: true}]
+                            return [{step: [...offset], mpl: pCol, separation: true, parent:node}]
                         }
                         for (let step = 1;step <= vMoveCol;step++) {
                             offset[dim] = step
-                            movelist.push({step: [...offset], mpl: pCol, separation: false})
+                            movelist.push({step: [...offset], mpl: pCol, separation: false,parent:node})
                         }
                     }
                 }
@@ -551,19 +583,14 @@ class Solver {
         return movelist
     }
     prepare(node) {
-//        console.log("prepare", node.movingPieceList, node.moveDirection, node.id)
         let movelist = this.getMovevementList(node)
-        let nodelist = []
-        if (DEBUG) console.log("prepare", node.id)
-//        console.log(node.id)
-//        console.log(movelist)
-        for (let move of movelist) {
-//            console.log("move", move)
-            let newNode = new Node(node, move.mpl, move.step, move.separation)
-            nodelist.push(newNode)
-            if (DEBUG) console.log("mpl", move.mpl, "dir", move.step, newNode.id)
+        if (DEBUG) {
+            console.log("prepare", node.id)
+            for (let move of movelist) {
+                console.log("mpl", move.mpl, "dir", move.step, newNode.id)
+            }
         }
-        return nodelist
+        return movelist
     }
     solve(startNode) {
         let curListFront = 0;
@@ -581,9 +608,11 @@ class Solver {
             let st
             let movesList = this.prepare(node)
             while (st = movesList.pop()) {
-                if (closedCache.includes(st.id)) {
+                // st = {mpl, step, separation, parent}
+                if (closedCache.includes(st.parent.getNextID(st.mpl, st.step))) {
                     continue
                 }
+                st = new Node(st.parent, st.mpl, st.step, st.separation)
                 // never seen this node before, add it to cache
                 closedCache.push(st.id)
                 // check for separation

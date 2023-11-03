@@ -564,25 +564,21 @@ class Solver {
 //        console.log("prepare", node.movingPieceList, node.moveDirection, node.id)
         let movelist = this.getMovevementList(node)
         let nodelist = []
+        if (DEBUG) console.log("prepare", node.id)
         for (let move of movelist) {
             let newNode = new Node(node, move.mpl, move.step, move.separation)
             nodelist.push(newNode)
-//            console.log("mpl", move.mpl, "dir", move.step, newNode.id)
+            if (DEBUG) console.log("mpl", move.mpl, "dir", move.step, newNode.id)
         }
         return nodelist
     }
     solve(startNode) {
         let curListFront = 0;
         let newListFront = 1;
-        let oldFront = 0;
-        let curFront = 1;
-        let newFront = 2;
-        let closed = [[], [], []]
         let openlist = [[], []]
-        let closedCache = [[], [], []]
+        let closedCache = []
     
-        closed[curFront].push(startNode)
-        closedCache[curFront].push(startNode.id)
+        closedCache.push(startNode.id)
         openlist[curListFront].push(startNode)
     
         let node
@@ -592,12 +588,11 @@ class Solver {
             let st
             let movesList = this.prepare(node)
             while (st = movesList.pop()) {
-                if (closedCache[oldFront].includes(st.id) || closedCache[curFront].includes(st.id) || closedCache[newFront].includes(st.id)) {
+                if (closedCache.includes(st.id)) {
                     continue
                 }
-                // never seen this node before, add it to new layer
-                closed[newFront].push(st)
-                closedCache[newFront].push(st.id)
+                // never seen this node before, add it to cache
+                closedCache.push(st.id)
                 // check for separation
                 if (!st.isSeparation) {
                     // it is not a separation, so add it for later analysis and continue to next node
@@ -605,8 +600,8 @@ class Solver {
                     continue
                 }
                 // this is a separation, continue to analyse the two subproblems
-                console.log ("SEPARATION FOUND")
-                let newRoots = st.separate() // KG debug
+                if (DEBUG) console.log ("SEPARATION FOUND level", level)
+                let newRoots = st.separate()
                 let result
                 for (let newRoot of newRoots) {
                     result = this.solve(newRoot)
@@ -617,24 +612,21 @@ class Solver {
             // if we get here, we have exhausted this layer of the search tree
             // move to the next layer
             if (openlist[curListFront].length == 0) {
-//                console.log("Next Level", level++)
+                if (DEBUG) console.log("Next Level", level++)
 //                console.log(closedCache[newFront])
                 curListFront = 1 - curListFront;
                 newListFront = 1 - newListFront;
-                closed[oldFront]=[]
-                closedCache[oldFront]=[]
-                oldFront = curFront;
-                curFront = newFront;
-                newFront = (newFront + 1) % 3;
             }
         }
-//        console.log("DEAD END")
+        if (DEBUG) console.log("DEAD END level", level)
 
         // the entire tree has been processed, no separation found
         return false
     }
     solveAll() {
-        for (let idx in this.assembler.assemblies) {
+//        for (let idx=0; idx<this.assembler.assemblies; idx++) {
+        for (let idx=0; idx<2000; idx++) {
+//        for (let idx in this.assembler.assemblies) {
             idx = Number(idx)
             console.log("solving assembly", idx)
             let rootNode = this.assembler.getAssemblyNode(idx)
@@ -651,15 +643,19 @@ class Solver {
 }
 
 // Read a plain text xml file and load it (in the xmpuzzle format)
-const xmpuzzleFile = readFileSync("misusedKey.xml");
+let DEBUG=false
+
+const xmpuzzleFile = readFileSync("two face 3.xml");
+//const xmpuzzleFile = readFileSync("misusedKey.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 
 let s = new Solver(theXMPuzzle)
-
+s.assembler.assemble()
+console.log(s.assembler._assemblies.length)
 console.profile()
     let r
 //    s.assembler.debug(20)
-//    r = s.solve(s.assembler.getAssemblyNode(20))
+//    r = s.solve(s.assembler.getAssemblyNode(1337))
     r = s.solveAll()
 console.profileEnd()
 /*
@@ -675,4 +671,3 @@ s.assembler._assemblies.forEach((a,i) => {
 })
 //console.dir(s.assembler._assemblies, {depth: null})
 */
-console.log(s.assembler._assemblies.length)

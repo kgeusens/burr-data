@@ -160,9 +160,13 @@ class Node {
     get id() { 
         if (this._id) return this._id
         else {
-            let firstPos = this.positionList[0]
-            this._id = "id"
-            this.positionList.forEach(v => {this._id += " " + (v[0] - firstPos[0]) + " " + (v[1] - firstPos[1])+" "+(v[2] - firstPos[2])})
+            let nPieces = this.pieceList.length
+            let offsetList = this._offsetList
+            this._id = "id "
+            for (let idx = 0;idx < nPieces;idx++) {
+                this._id += (offsetList[idx*3] - offsetList[0]) + " " + (offsetList[idx*3+1] - offsetList[1]) + " " + (offsetList[idx*3 + 2] - offsetList[2])
+            }
+//            this.positionList.forEach(v => {this._id += " " + (v[0] - firstPos[0]) + " " + (v[1] - firstPos[1])+" "+(v[2] - firstPos[2])})
         }
         return this._id
     }
@@ -175,6 +179,7 @@ class Node {
         this._hotspotList = assembly.map(v => v.data.hotspot)
         this._offsetList = []
         assembly.forEach(v => this._offsetList.push(v.data.offset[0], v.data.offset[1], v.data.offset[2]))
+        this._id = undefined
         // ID = the concatenation of the positionList, but normalized to the first element at [0,0,0]
 //        let firstPos = this.positionList[0]
 //        this.id = "id " + this.positionList.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).flat().join(" ")
@@ -638,8 +643,8 @@ class Solver {
         return false
     }
     solveAll() {
-        for (let idx=0; idx<this.assembler.assemblies.length; idx++) {
-//        for (let idx=0; idx<2000; idx++) {
+//        for (let idx=0; idx<this.assembler.assemblies.length; idx++) {
+        for (let idx=0; idx<2000; idx++) {
             idx = Number(idx)
             if (DEBUG) console.log("solving assembly", idx)
             let rootNode = this.assembler.getAssemblyNode(idx)
@@ -659,8 +664,8 @@ class Solver {
 // Read a plain text xml file and load it (in the xmpuzzle format)
 let DEBUG=false
 
-//const xmpuzzleFile = readFileSync("two face 3.xml");
-const xmpuzzleFile = readFileSync("misusedKey.xml");
+const xmpuzzleFile = readFileSync("two face 3.xml");
+//const xmpuzzleFile = readFileSync("misusedKey.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 
 let s = new Solver(theXMPuzzle)

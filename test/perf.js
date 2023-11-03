@@ -76,6 +76,9 @@ class testObject {
     delete(idx) {
         delete this.container[idx]
     }
+    get(idx) {
+        return this.container[idx]
+    }
 }
 
 class testSet {
@@ -140,29 +143,30 @@ let m = new testMap()
 let o = new testObject()
 let sa = new testSparseArray()
 
-let containers = [m, s]
+let containers = [o,m]
 //let containers = [sa, a, s, m, o]
 
-const mapLength=100
+const mapLength=162
 const indexOffset=4000000
-const runLength=100000
+const runLength=37000
 
 console.profile()
 for (let idx=mapLength; idx >=0; idx--) {
     for (let c of containers) {
-        c.add(idx,idx)
+        c.add("id "+idx,idx)
     }
 }
-
 for (let c of containers) {
+    console.time(c.type)
     for (let run=0;run<runLength;run++) {
         for (let idx=mapLength; idx >=1; idx--) {
-            if (!c.has(idx)) throw(c.type + ".has(" +idx+ ") returned false")
-            if (c.hasNot(-1*idx)) throw(c.type + ".hasNot(" +idx+ ") returned true")
-            c.get(-1*idx)
+//            if (!c.has(idx)) throw(c.type + ".has(" +idx+ ") returned false")
+//            if (c.hasNot(-1*idx)) throw(c.type + ".hasNot(" +idx+ ") returned true")
+            if (c.get("id "+idx) != idx) throw ("error")
         }
 //        c.iterate()
     }
+    console.timeEnd(c.type)
 }
 
 for (let idx=mapLength; idx >=1; idx--) {
@@ -170,5 +174,4 @@ for (let idx=mapLength; idx >=1; idx--) {
 //        c.delete(idx)
     }
 }
-
 console.profileEnd()

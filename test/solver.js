@@ -65,7 +65,7 @@ class Assembler {
         rootNode.setFromAssembly(this.assemblies[idx])
         return rootNode
     }
-    checkAssembly() {
+    checkAssembly() { // KG: need to fix
         // count all voxels
         for (let idx in this._assemblies) {
 //            console.log("checking assembly", idx)
@@ -100,7 +100,7 @@ class Node {
 //    _rotationList = [] // static throughout the searchtree
 //    _hotspotList = [] // static throughout the searchtree
 // Private properties for every Node
-    offsetList = [] // changes throughout the searchtree.
+    _offsetList = [] // changes throughout the searchtree.
     _id // cache for id, reset to undefined if you want it to be recalculated
 //    positionList = [] // KG: should be cached again? Not sure if this is worth it since it is only called once or twice per node
 //    reverse for id: maybe it should not be cached but rather calculated, since it is only used once or twice in the lifecycle of node
@@ -120,22 +120,21 @@ class Node {
         if (parentObject) {
             this._root = parentObject.root
             this._parent = parentObject
-//            this.pieceList = this.root.pieceList
-//            this.rotationList = this.root.rotationList
-//            this.hotspotList = this.root.hotspotList
             this.isSeparation = separation
             // KG : currently an offsetList ia an array of arrays. Maybe a flat array will speed things up?
             // also requires us to do a deep copy of offsetlist for every node, where a flat copy is more efficient!!
-            for (let idx in parentObject.offsetList) this.offsetList[idx] = parentObject.offsetList[idx].slice()
+            let nPieces = this._root._pieceList.length
+//            for (let idx = 0;idx < nPieces;idx++) this.offsetList[idx] = parentObject.offsetList[idx].slice()
+            this._offsetList = parentObject._offsetList.slice() // flatcopy the array
             if (movingPieceList) {
                 this.movingPieceList = movingPieceList.slice()
                 this.moveDirection = translation.slice()
                 let v
                 for (let i=0;i<movingPieceList.length;i++) {
-                    v = movingPieceList[i]
-                    this.offsetList[v][0] += translation[0]
-                    this.offsetList[v][1] += translation[1]
-                    this.offsetList[v][2] += translation[2]
+                    v = movingPieceList[i]*3
+                    this._offsetList[v] += translation[0]
+                    this._offsetList[v+1] += translation[1]
+                    this._offsetList[v+2] += translation[2]
                 }
             }
             /*
@@ -155,7 +154,8 @@ class Node {
     get rotationList() { return this._root._rotationList }
     get hotspotList() { return this._root._hotspotList }
     get positionList() { 
-        return this.hotspotList.map((v, idx) => [v[0] + this.offsetList[idx][0],v[1] + this.offsetList[idx][1],v[2] + this.offsetList[idx][2]])
+        // add offsetList to hotspotList
+        return this.hotspotList.map((v, idx) => [v[0] + this._offsetList[idx*3],v[1] + this._offsetList[idx*3 + 1],v[2] + this._offsetList[idx*3 + 2]])
     }
     get id() { 
         if (this._id) return this._id
@@ -173,7 +173,8 @@ class Node {
         this._pieceList = assembly.map(v => Number(v.data.id))
         this._rotationList = assembly.map(v => Number(v.data.rotation))
         this._hotspotList = assembly.map(v => v.data.hotspot)
-        this.offsetList = assembly.map(v => [v.data.offset[0], v.data.offset[1], v.data.offset[2]])
+        this._offsetList = []
+        assembly.forEach(v => this._offsetList.push(v.data.offset[0], v.data.offset[1], v.data.offset[2]))
         // ID = the concatenation of the positionList, but normalized to the first element at [0,0,0]
 //        let firstPos = this.positionList[0]
 //        this.id = "id " + this.positionList.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).flat().join(" ")
@@ -186,6 +187,7 @@ class Node {
         let newNodes = []
         if (this.isSeparation) {
             // only add a new rootNode if it will contain more than 1 piece
+            let nPieces = this.pieceList.length
             if ((this.pieceList.length - this.movingPieceList.length) > 1) {
                 // so at this point, we know we are a separation
                 // movingPieceList and movingDirection tells us what to work with
@@ -198,9 +200,11 @@ class Node {
                 newRoot._rotationList = this.rotationList.filter((v,idx) => !this.movingPieceList.includes(idx))
                 newRoot._hotspotList = this.hotspotList.filter((v,idx) => !this.movingPieceList.includes(idx))
                 // for offsetList, we need to deep copy. Maybe best do a for loop.
-                newRoot.offsetList = []
-                for (let idx = 0; idx < this.offsetList.length; idx++) {
-                    if (!this.movingPieceList.includes(idx)) newRoot.offsetList.push(this.offsetList[idx].slice())
+                newRoot._offsetList = []
+                for (let idx = 0;idx < nPieces;idx++) { 
+                    if (!this.movingPieceList.includes(idx)) {
+                        newRoot._offsetList.push(this._offsetList[idx*3], this._offsetList[idx*3+1], this._offsetList[idx*3+2])
+                    }
                 }
                 newNodes.push(newRoot)
             }
@@ -215,10 +219,12 @@ class Node {
                 newRoot._rotationList = this.rotationList.filter((v,idx) => this.movingPieceList.includes(idx))
                 newRoot._hotspotList = this.hotspotList.filter((v,idx) => this.movingPieceList.includes(idx))
                 // for offsetList, we need to deep copy. Maybe best do a for loop.
-                newRoot.offsetList = []
-                for (let idx = 0; idx < this.offsetList.length; idx++) {
+                newRoot._offsetList = []
+                for (let idx = 0; idx < nPieces; idx++) {
                     // need to get the original positions of the moving pieces from our parent!
-                    if (this.movingPieceList.includes(idx)) newRoot.offsetList.push(this.parent.offsetList[idx].slice())
+                    if (this.movingPieceList.includes(idx))  {
+                        newRoot._offsetList.push(this.parent._offsetList[idx*3], this.parent._offsetList[idx*3+1], this.parent._offsetList[idx*3+2])
+                    }
                 }
                 newNodes.push(newRoot)
             }
@@ -227,7 +233,7 @@ class Node {
     }
 }
 
-class movementCache {
+class MovementCache {
     _puzzle
     _problemIndex
     _instanceCache = {}
@@ -378,7 +384,7 @@ class Solver {
     constructor(puzzle, problemIdx = 0) {
         this._puzzle = puzzle
         this._problemIndex = problemIdx
-        this._cache = new movementCache(puzzle, problemIdx)
+        this._cache = new MovementCache(puzzle, problemIdx)
         this._assembler = new Assembler(this._cache)
     }
     get assembler() { return this._assembler }
@@ -396,9 +402,10 @@ class Solver {
                 for (let i=0;i<nPieces;i++) {
                     if (i==j) matrix.push(0,0,0)
                     else {
-                        let s1 = node.pieceList[i]; let r1 = node.rotationList[i];let o1 = node.offsetList[i]
-                        let s2 = node.pieceList[j]; let r2 = node.rotationList[j];let o2 = node.offsetList[j]
-                        let maxMoves = cache.getMaxValues(s1, r1, s2, r2, o2[0] - o1[0], o2[1] - o1[1], o2[2] - o1[2])
+                        let s1 = node.pieceList[i]; let r1 = node.rotationList[i];let o1 = i*3
+                        let s2 = node.pieceList[j]; let r2 = node.rotationList[j];let o2 = j*3
+                        let olist = node._offsetList
+                        let maxMoves = cache.getMaxValues(s1, r1, s2, r2, olist[o2] - olist[o1], olist[o2+1] - olist[o1+1], olist[o2+2] - olist[o1+2])
                         matrix.push(maxMoves[0], maxMoves[1], maxMoves[2])
                     }
                 }
@@ -569,7 +576,10 @@ class Solver {
         let movelist = this.getMovevementList(node)
         let nodelist = []
         if (DEBUG) console.log("prepare", node.id)
+//        console.log(node.id)
+//        console.log(movelist)
         for (let move of movelist) {
+//            console.log("move", move)
             let newNode = new Node(node, move.mpl, move.step, move.separation)
             nodelist.push(newNode)
             if (DEBUG) console.log("mpl", move.mpl, "dir", move.step, newNode.id)
@@ -628,14 +638,15 @@ class Solver {
         return false
     }
     solveAll() {
-//        for (let idx=0; idx<this.assembler.assemblies.length; idx++) {
-        for (let idx=0; idx<2000; idx++) {
+        for (let idx=0; idx<this.assembler.assemblies.length; idx++) {
+//        for (let idx=0; idx<2000; idx++) {
             idx = Number(idx)
-            console.log("solving assembly", idx)
+            if (DEBUG) console.log("solving assembly", idx)
             let rootNode = this.assembler.getAssemblyNode(idx)
             let result = this.solve(rootNode)
+//            if (result && DEBUG) console.log("SOLUTION FOUND")
             if (result) console.log("SOLUTION FOUND")
-        }
+}
     }
     debug(id) {
         let rootNode = this.assembler.getAssemblyNode(id)
@@ -648,19 +659,24 @@ class Solver {
 // Read a plain text xml file and load it (in the xmpuzzle format)
 let DEBUG=false
 
-const xmpuzzleFile = readFileSync("two face 3.xml");
-//const xmpuzzleFile = readFileSync("misusedKey.xml");
+//const xmpuzzleFile = readFileSync("two face 3.xml");
+const xmpuzzleFile = readFileSync("misusedKey.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 
 let s = new Solver(theXMPuzzle)
+console.time("assemble")
 s.assembler.assemble()
 console.log(s.assembler._assemblies.length)
+console.timeEnd("assemble")
+
 console.profile()
-    let r
     //    s.assembler.debug(20)
 //    r = s.solve(s.assembler.getAssemblyNode(1337))
-    r = s.solveAll()
+    console.time("solveAll")
+    s.solveAll()
+    console.timeEnd("solveAll")
 console.profileEnd()
+
 /*
 s.assembler.assemble()
 s.assembler._assemblies.forEach((a,i) => {

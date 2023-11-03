@@ -102,29 +102,16 @@ class Node {
 // Private properties for every Node
     _offsetList = [] // changes throughout the searchtree.
     _id // cache for id, reset to undefined if you want it to be recalculated
-//    positionList = [] // KG: should be cached again? Not sure if this is worth it since it is only called once or twice per node
-//    reverse for id: maybe it should not be cached but rather calculated, since it is only used once or twice in the lifecycle of node
-//    id // (key) id = the concatenation of positionList, but normalized to the first element at [0,0,0]
     _parent=null // parent of this separation tree. null if top of search tree
     _root=null // root of the separation tree
     isSeparation // did we remove the pieces from the puzzle
     movingPieceList // pieces that needed to move to get here from the parent
     moveDirection // the step that the pieces needed to make to get here ;)
-    // Pass a single solution from the assembler.
-    // Parse the information from the data property
-    // rotation: the rotation index applied to the voxel
-    // hotspot : the default translation applied to the rotated voxel
-    // offset : the additional translation for the VoxelInstance as calculated by the assembler
-    // parent : undefined by default, but needed when this is used as a node in the solution tree. Points back to the previous step.
     constructor(parentObject, movingPieceList, translation = [0,0,0], separation = false) {
         if (parentObject) {
             this._root = parentObject.root
             this._parent = parentObject
             this.isSeparation = separation
-            // KG : currently an offsetList ia an array of arrays. Maybe a flat array will speed things up?
-            // also requires us to do a deep copy of offsetlist for every node, where a flat copy is more efficient!!
-            let nPieces = this._root._pieceList.length
-//            for (let idx = 0;idx < nPieces;idx++) this.offsetList[idx] = parentObject.offsetList[idx].slice()
             this._offsetList = parentObject._offsetList.slice() // flatcopy the array
             if (movingPieceList) {
                 this.movingPieceList = movingPieceList.slice()
@@ -137,12 +124,6 @@ class Node {
                     this._offsetList[v+2] += translation[2]
                 }
             }
-            /*
-            let pl = this.positionList
-            let firstPos = pl[0]
-            this.id = "id"
-            pl.forEach(v => {this.id += " " + (v[0] - firstPos[0]) + " " + (v[1] - firstPos[1])+" "+(v[2] - firstPos[2])})
-            */
         }
         else {
             this._root = this
@@ -153,20 +134,15 @@ class Node {
     get pieceList() { return this._root._pieceList }
     get rotationList() { return this._root._rotationList }
     get hotspotList() { return this._root._hotspotList }
-    get positionList() { 
-        // add offsetList to hotspotList
-        return this.hotspotList.map((v, idx) => [v[0] + this._offsetList[idx*3],v[1] + this._offsetList[idx*3 + 1],v[2] + this._offsetList[idx*3 + 2]])
-    }
     get id() { 
         if (this._id) return this._id
         else {
             let nPieces = this.pieceList.length
             let offsetList = this._offsetList
-            this._id = "id "
+            this._id = "id"
             for (let idx = 0;idx < nPieces;idx++) {
-                this._id += (offsetList[idx*3] - offsetList[0]) + " " + (offsetList[idx*3+1] - offsetList[1]) + " " + (offsetList[idx*3 + 2] - offsetList[2])
+                this._id += " " + (offsetList[idx*3] - offsetList[0]) + " " + (offsetList[idx*3+1] - offsetList[1]) + " " + (offsetList[idx*3 + 2] - offsetList[2])
             }
-//            this.positionList.forEach(v => {this._id += " " + (v[0] - firstPos[0]) + " " + (v[1] - firstPos[1])+" "+(v[2] - firstPos[2])})
         }
         return this._id
     }
@@ -176,13 +152,11 @@ class Node {
         // We are a rootNode, so set our root properties
         this._pieceList = assembly.map(v => Number(v.data.id))
         this._rotationList = assembly.map(v => Number(v.data.rotation))
-        this._hotspotList = assembly.map(v => v.data.hotspot)
+        this._hotspotList=[]
+        assembly.forEach(v => this._hotspotList.push(v.data.hotspot[0], v.data.hotspot[1], v.data.hotspot[2]))
         this._offsetList = []
         assembly.forEach(v => this._offsetList.push(v.data.offset[0], v.data.offset[1], v.data.offset[2]))
         this._id = undefined
-        // ID = the concatenation of the positionList, but normalized to the first element at [0,0,0]
-//        let firstPos = this.positionList[0]
-//        this.id = "id " + this.positionList.map(v => [v[0] - firstPos[0], v[1] - firstPos[1], v[2] - firstPos[2]]).flat().join(" ")
     }
     separate() {
         // returns an array of new rootNodes
@@ -193,7 +167,7 @@ class Node {
         if (this.isSeparation) {
             // only add a new rootNode if it will contain more than 1 piece
             let nPieces = this.pieceList.length
-            if ((this.pieceList.length - this.movingPieceList.length) > 1) {
+            if ((nPieces - this.movingPieceList.length) > 1) {
                 // so at this point, we know we are a separation
                 // movingPieceList and movingDirection tells us what to work with
                 let newRoot = new Node()
@@ -203,17 +177,18 @@ class Node {
                 newRoot._pieceList = this.pieceList.filter((v,idx) => !this.movingPieceList.includes(idx))
                 // same for the other lists
                 newRoot._rotationList = this.rotationList.filter((v,idx) => !this.movingPieceList.includes(idx))
-                newRoot._hotspotList = this.hotspotList.filter((v,idx) => !this.movingPieceList.includes(idx))
-                // for offsetList, we need to deep copy. Maybe best do a for loop.
+                newRoot._hotspotList = []
                 newRoot._offsetList = []
                 for (let idx = 0;idx < nPieces;idx++) { 
                     if (!this.movingPieceList.includes(idx)) {
+                        newRoot._hotspotList.push(this.hotspotList[idx*3], this.hotspotList[idx*3+1], this.hotspotList[idx*3+2])
                         newRoot._offsetList.push(this._offsetList[idx*3], this._offsetList[idx*3+1], this._offsetList[idx*3+2])
                     }
                 }
                 newNodes.push(newRoot)
             }
             if ((this.movingPieceList.length) > 1) {
+                // This is normally the smallest partition
                 let newRoot = new Node()
                 newRoot._parent = this
                 newRoot._root = newRoot
@@ -222,12 +197,11 @@ class Node {
                 newRoot._pieceList = this.pieceList.filter((v,idx) => this.movingPieceList.includes(idx))
                 // same for the other lists
                 newRoot._rotationList = this.rotationList.filter((v,idx) => this.movingPieceList.includes(idx))
-                newRoot._hotspotList = this.hotspotList.filter((v,idx) => this.movingPieceList.includes(idx))
-                // for offsetList, we need to deep copy. Maybe best do a for loop.
+                newRoot._hotspotList = []
                 newRoot._offsetList = []
-                for (let idx = 0; idx < nPieces; idx++) {
-                    // need to get the original positions of the moving pieces from our parent!
-                    if (this.movingPieceList.includes(idx))  {
+                for (let idx = 0;idx < nPieces;idx++) { 
+                    if (this.movingPieceList.includes(idx)) {
+                        newRoot._hotspotList.push(this.hotspotList[idx*3], this.hotspotList[idx*3+1], this.hotspotList[idx*3+2])
                         newRoot._offsetList.push(this.parent._offsetList[idx*3], this.parent._offsetList[idx*3+1], this.parent._offsetList[idx*3+2])
                     }
                 }

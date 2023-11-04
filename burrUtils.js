@@ -314,15 +314,11 @@ export function calcSymmetryGroups() {
   return selfSymmetries
 }
 
-export const DoubleRotationMatrix = calcDoubleRotations()
-export function calcDoubleRotations() {
+export const DoubleRotationMatrix = []
+export const InverseRotations = new Array(24)
   let point = [ 1, 2, 3]
-  let rx = [0,1,2,3]
-  let ry = [0,4,8,12]
-  let rz = [0,16,10,20]
-  let U = {}
   let Z = {}
-  let matrix = []
+  let res
   for (let idx = 0;idx <24;idx++) {
       let rpoint=rotatePoint(point, idx)
       Z[rpoint.join(" ")] = idx
@@ -330,16 +326,15 @@ export function calcDoubleRotations() {
   for (let rot1 = 0;rot1<24;rot1++) {
       for (let rot2 = 0;rot2<24;rot2++) {
           let rpoint=rotatePoint(rotatePoint(point,rot1),rot2)
-          matrix.push(Z[rpoint.join(" ")])
+          res = Z[rpoint.join(" ")]
+          DoubleRotationMatrix.push(Z[rpoint.join(" ")])
+          if (res == 0) InverseRotations[rot1]=rot2
       }
   }
-  return matrix
-}
 
 export function calcRotationsToCheck(symmetryMembers) {
   let skipMatrix = new Array(24)
   let sym=0
-  let res = []
   for (let rot = 0;rot < 24; rot++) {
     if (!skipMatrix[rot]) {
       for (let idx=1;idx<symmetryMembers.length;idx++) {
@@ -357,6 +352,24 @@ export function calcRotationsToCheck(symmetryMembers) {
   return result
 }
 
-export function combineSelfSymmetries(resultSyms, pieceSyms) {
-  // I think we can just make the union of the symmetries, and then do calRotationsToCheck
+export function combineSelfSymmetries(symmetryMembers, puzzleSyms) {
+  let skipMatrix = new Array(24)
+  let sym=0
+  // we can eliminate symmetrymembers followed by the reverse rotations of puzzleSyms
+  for (let i=0;i<24;i++) if (!symmetryMembers.includes(i)) skipMatrix[i]=true
+  for (let rot of symmetryMembers) {
+    if (!skipMatrix[rot]) {
+      for (let idx=1;idx<puzzleSyms.length;idx++) {
+        sym = puzzleSyms[idx]
+        let res = DoubleRotationMatrix[InverseRotations[sym] + 24*rot]
+        skipMatrix[res] = true
+      }
+    }
+  }
+  // now we have the ones to skip, but we need the ones to check
+  let result = []
+  for (let rot = 0;rot < 24; rot++) {
+    if (!skipMatrix[rot]) result.push(rot)
+  }
+  return result
 }

@@ -1,10 +1,12 @@
 import * as DATA from '../index.js'
 import { readFileSync} from 'fs'
-import { rotatePoint, rotate, calcRotationsToCheck } from '../burrUtils.js'
+import { rotatePoint, rotate, calcRotationsToCheck, combineSelfSymmetries } from '../burrUtils.js'
 import * as DLX from 'dancing-links'
 import { log } from 'console'
 
 // https://billcutlerpuzzles.com/docs/CA6PB/analyzing.html
+
+
 
 class Assembler {
     _cache
@@ -16,11 +18,37 @@ class Assembler {
         if (!this._assemblies) this._assemblies=this.assemble()
         return this._assemblies
     }
+    get uniqueAssemblies() {
+        // The unique hash of an assembly can be defined by the sorted sequence of shapid + shaperotation
+        //Remove rotations if resultVoxel is symmetric
+        let len = this.assemblies.length
+        let asm
+        for (let idx=0;idx < len;idx++) {
+            asm = this.assemblies[idx]
+            // asm = [ { index: int, data: {id: int, rotation: int} } ]
+            // need to sort on id without trying to copy data (use refs to data)
+        }
+
+        //Remove permutations of identical instances (shapes with count > 1)
+    }
+    sort(asm) {
+        // asm = [ { index: int, data: {id: int, rotation: int} } ]
+        // in place sort of the asm array, sorted by data.id
+        // map will be a sparse array
+        let map = []
+        let id=""
+        for (let i=0; i<asm.length; i++) {
+            map[asm[i].data.id] = asm[i]
+        }
+        let count = 0
+        map.forEach((v,i) => asm[count++] = v)
+    }
     getDLXmatrix() {
         this._assemblies = null
         let r = new DATA.VoxelInstance(
             { voxel:this._cache.resultVoxel } )
         let rbb = r.boundingBox
+//        let rsyms=r._voxel.calcSelfSymmetries()
         let matrix = []
         // make use of selfsymmetries of pieces
         // if a piece is selfsymmetric, we can leave out a number of symmetries to check.
@@ -58,6 +86,7 @@ class Assembler {
     }
     assemble() {
         this._assemblies = DLX.findAll(this.getDLXmatrix())
+        this._assemblies.forEach(v => this.sort(v))
         return this._assemblies
     }
     getAssemblyNode(idx) {
@@ -684,8 +713,8 @@ const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 
 let s = new Solver(theXMPuzzle)
 console.time("assemble")
-s.assembler.assemble()
-console.log(s.assembler._assemblies.length)
+//s.assembler.assemble()
+console.log(s.assembler.assemblies.length)
 console.timeEnd("assemble")
 
 console.profile()
@@ -698,7 +727,7 @@ console.profileEnd()
 
 /*
 s.assembler.assemble()
-s.assembler._assemblies.forEach((a,i) => {
+s.assembler.assemblies.forEach((a,i) => {
     let msg = "assembly "
     let m = []
     a.forEach(p => m[p.data.id] = " id " + p.data.id + " rot " + p.data.rotation)
@@ -707,5 +736,5 @@ s.assembler._assemblies.forEach((a,i) => {
     })
     console.log(msg, "assemblyid",i)
 })
-//console.dir(s.assembler._assemblies, {depth: null})
+//console.dir(s.assembler.assemblies, {depth: null})
 */

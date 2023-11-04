@@ -352,24 +352,33 @@ export function calcRotationsToCheck(symmetryMembers) {
   return result
 }
 
-export function combineSelfSymmetries(symmetryMembers, puzzleSyms) {
+export function calcSymPartitionMap(symmetryMembers) {
+  // Maps rotations
+  // Map(x) takes rotation x, and rotates it again over every symmetry member
+  // The result is a group of rotations that are equivalent according to the symmetrygroup.
+  // The resulting group is then identified by the smallest rotation id and stored in the map
+  // This is useful to quickly identify equivalent assemblies and calculating unique assembly ids
+  // This can later be cached in a static lookup table instead of caluclating dynamically.
   let skipMatrix = new Array(24)
   let sym=0
-  // we can eliminate symmetrymembers followed by the reverse rotations of puzzleSyms
-  for (let i=0;i<24;i++) if (!symmetryMembers.includes(i)) skipMatrix[i]=true
-  for (let rot of symmetryMembers) {
-    if (!skipMatrix[rot]) {
-      for (let idx=1;idx<puzzleSyms.length;idx++) {
-        sym = puzzleSyms[idx]
-        let res = DoubleRotationMatrix[InverseRotations[sym] + 24*rot]
-        skipMatrix[res] = true
+  let group
+  for (let rot = 0;rot < 24; rot++) {
+    if (!(skipMatrix[rot]>=0)) {
+      group = []
+      for (let idx=0;idx<symmetryMembers.length;idx++) {
+        sym = symmetryMembers[idx]
+        let res = DoubleRotationMatrix[rot + 24*sym]
+        group.push(res)
+        skipMatrix[res] = group
       }
     }
   }
-  // now we have the ones to skip, but we need the ones to check
   let result = []
-  for (let rot = 0;rot < 24; rot++) {
-    if (!skipMatrix[rot]) result.push(rot)
+  for (let i=0;i<skipMatrix.length;i++) {
+    result.push(Math.min(...skipMatrix[i]))
   }
+  // now we have mapping of rotation to group
   return result
 }
+
+export const calcSymPartitions = []

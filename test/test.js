@@ -9,10 +9,13 @@ import * as TOOLS from '../burrUtils.js'
 
 
 // Read a plain text xml file and load it (in the xmpuzzle format)
-const xmpuzzleFile = readFileSync("misusedKey.xml");
+const xmpuzzleFile = readFileSync("two face 3.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
-console.log(theXMPuzzle.getShape(5).calcSelfSymmetries())
-console.log(TOOLS.calcRotationsToCheck([0,10]))
+let symgroup = theXMPuzzle.getShape(3).calcSelfSymmetries()
+console.log(symgroup)
+console.log(TOOLS.calcSymPartitionMap(symgroup))
+console.log(TOOLS.calcRotationsToCheck(symgroup))
+console.log(TOOLS.SymmetryGroups)
 console.log("done")
 //theXMPuzzle.comment.set("uri", "/puzzle/loc")
 //theXMPuzzle.problems.problem[0].shapes.shape[0].group=0

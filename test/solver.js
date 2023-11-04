@@ -1,6 +1,6 @@
 import * as DATA from '../index.js'
 import { readFileSync} from 'fs'
-import { rotatePoint, rotate, calcRotationsToCheck, combineSelfSymmetries } from '../burrUtils.js'
+import { rotatePoint, rotate, calcRotationsToCheck, DoubleRotationMatrix, calcSymPartitionMap } from '../burrUtils.js'
 import * as DLX from 'dancing-links'
 import { log } from 'console'
 
@@ -23,13 +23,48 @@ class Assembler {
         //Remove rotations if resultVoxel is symmetric
         let len = this.assemblies.length
         let asm
+        let hash
+        let symrot
+        let cache={}
+        let rVoxelSyms = new DATA.VoxelInstance({ voxel:this._cache.resultVoxel })._voxel.calcSelfSymmetries()
+        let newrot
+        let result = []
+        // KG : if rVoxelSyms is [0] only, we should skip this step
+        if (rVoxelSyms.length <= 1) return this.assemblies
         for (let idx=0;idx < len;idx++) {
+            // loop over all the assemblies
+            // We check if the rotated id is already in the cache.
+            // * if it is: skip, this is not unique
+            // * if it is: add it to the cache, keep it in the results, and process the rotations
+            //      - no need to calc "rotidx 0" because that has no effect (already cached)
+            //      - rotate the pieces, calc the new id, and mark it in the cache
             asm = this.assemblies[idx]
             // asm = [ { index: int, data: {id: int, rotation: int} } ]
-            // need to sort on id without trying to copy data (use refs to data)
+            // asm should be sorted by data.id so creating the hash is easy
+            // We still need to take selfymmetries of individual pieces into account
+            // this quickly becomes a very expensive operation O(n2)
+            for (let symidx=0; symidx <rVoxelSyms.length ; symidx++) {
+                symrot = rVoxelSyms[symidx]
+                hash = "id"
+                for (let i=0;i<asm.length;i++) {
+                    newrot = DoubleRotationMatrix[asm[i].data.rotation*24 + symrot]
+                    // newrot needs to be mapped using calcSymPartitionMap using the self Symmetries of the piece.
+                    // we can access this from the cache using the shapeid and rotation
+//                    let syms = this._cache.getShapeInstance(asm[i].data.id, 0)._voxel.calcSelfSymmetries()
+//                    hash += " " + asm[i].data.id + " " + calcSymPartitionMap(syms)[newrot]
+                    hash += " " + asm[i].data.id + " " + newrot
+                }
+                if (symrot == 0) {
+                    if (cache[hash]) {
+                        break
+                    } 
+                    else result.push(asm)
+                }
+                cache[hash] = true
+            }
         }
-
         //Remove permutations of identical instances (shapes with count > 1)
+        return result
     }
     sort(asm) {
         // asm = [ { index: int, data: {id: int, rotation: int} } ]
@@ -41,7 +76,9 @@ class Assembler {
             map[asm[i].data.id] = asm[i]
         }
         let count = 0
-        map.forEach((v,i) => asm[count++] = v)
+        map.forEach((v,i) => {
+            asm[count++] = v
+        })
     }
     getDLXmatrix() {
         this._assemblies = null
@@ -124,10 +161,13 @@ class Assembler {
 
 // I think "Node" can be the representation of a search node in the tree
 class Node {
-// Properties of root only:
+// Properties of root only (changes per separation):
 //    _pieceList = [] // map to shape instance, static throughout a separation tree
 //    _rotationList = [] // static throughout the searchtree
 //    _hotspotList = [] // static throughout the searchtree
+// Property of top of the search tree
+//    _assembly
+//    _assemblyID
 // Private properties for every Node
     _offsetList = [] // changes throughout the searchtree.
     _id // cache for id, reset to undefined if you want it to be recalculated
@@ -179,6 +219,8 @@ class Node {
     get pieceList() { return this._root._pieceList }
     get rotationList() { return this._root._rotationList }
     get hotspotList() { return this._root._hotspotList }
+    get assembly() { return this._root._assembly}
+    get assemblyID() { return this._root._assemblyID }
     get id() { 
         if (this._id) return this._id
         else {
@@ -191,7 +233,7 @@ class Node {
         }
         return this._id
     }
-    setFromAssembly(assembly) {
+    setFromAssembly(assembly, rootVoxel) {
         // assembly is an array of pieces, it contains a property called "data" with info that we passed to the assembler.
         // Here we deconstruct that information into separate arrays.
         // We are a rootNode, so set our root properties
@@ -205,6 +247,17 @@ class Node {
         })
 //        assembly.forEach(v => this._offsetList.push(v.data.offset[0], v.data.offset[1], v.data.offset[2]))
         this._id = undefined
+        // now calculate the assemblyID relative to the resultVoxel
+        let hash = "id"
+        /*
+        let symgroup = rootVoxel.calcSelfSymmetries()
+        let partitionMap = calcSymPartitions(symgroup)
+        for (let i=0;i<assembly.length;i++) {
+            hash += " " + assembly[i].data.id + " " + partitionMap[assembly[i].data.rotation]
+        }
+        */
+        this._assembly = assembly
+        this._assemblyID = hash
     }
     separate() {
         // returns an array of new rootNodes
@@ -221,6 +274,8 @@ class Node {
                 let newRoot = new Node()
                 newRoot._parent = this
                 newRoot._root = newRoot
+                newRoot._assembly = this._assembly
+                newRoot._assemblyID = this._assemblyID
                 // only keep the pieces that are not moving. Filter out the moving pieces
                 newRoot._pieceList = this.pieceList.filter((v,idx) => !this.movingPieceList.includes(idx))
                 // same for the other lists
@@ -686,14 +741,15 @@ class Solver {
         return true
     }
     solveAll() {
-//        for (let idx=0; idx<this.assembler.assemblies.length; idx++) {
-        for (let idx=0; idx<22016; idx++) {
-            idx = Number(idx)
+        let all = this.assembler.uniqueAssemblies
+//        let all = this.assembler.assemblies
+        for (let idx=0; idx<all.length; idx++) {
+//        for (let idx=0; idx<22016; idx++) {
             if (DEBUG) console.log("solving assembly", idx)
             let rootNode = this.assembler.getAssemblyNode(idx)
             let result = this.solve(rootNode)
-//            if (result && DEBUG) console.log("SOLUTION FOUND")
-            if (result) console.log("SOLUTION FOUND")
+            if (DEBUG && result) console.log("SOLUTION FOUND")
+            if (result) console.log("SOLUTION FOUND", rootNode.assemblyID)
         }
     }
     debug(id) {
@@ -712,14 +768,14 @@ const xmpuzzleFile = readFileSync("two face 3.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 
 let s = new Solver(theXMPuzzle)
+
 console.time("assemble")
-//s.assembler.assemble()
+console.log(s.assembler.uniqueAssemblies.length)
 console.log(s.assembler.assemblies.length)
 console.timeEnd("assemble")
 
 console.profile()
     //    s.assembler.debug(20)
-//    r = s.solve(s.assembler.getAssemblyNode(1337))
     console.time("solveAll")
     s.solveAll()
     console.timeEnd("solveAll")

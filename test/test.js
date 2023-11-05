@@ -12,11 +12,39 @@ import * as TOOLS from '../burrUtils.js'
 const xmpuzzleFile = readFileSync("two face 3.xml");
 const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 let symgroup = theXMPuzzle.getShape(3).calcSelfSymmetries()
-console.log(symgroup)
-console.log(TOOLS.calcSymPartitionMap(symgroup))
-console.log(TOOLS.calcRotationsToCheck(symgroup))
-console.log(TOOLS.SymmetryGroups)
-console.log("done")
+//console.log(symgroup)
+//console.log(TOOLS.calcSymPartitionMap(symgroup))
+//console.log(TOOLS.calcRotationsToCheck([0,1,2,3]))
+//console.log(TOOLS.hashToRotations(0))
+//console.log(TOOLS.rotationsToHash([]))
+//console.log(TOOLS.calcRotationsToCheck(1))
+/*
+let mySymGroups = []
+let myHash
+let mySymGroup
+// based on double rotations
+for (let i=0;i<24;i++) {
+    for (let j=0;j<24;j++) {
+        myHash=TOOLS.rotationsToHash([i,j])
+        mySymGroup = TOOLS.calcSymmetryGroup(myHash)
+    //    mySymGroups[myHash]=mySymGroup
+        mySymGroups[mySymGroup]=mySymGroup
+    }
+    myHash=TOOLS.rotationsToHash([i])
+    mySymGroup = TOOLS.calcSymmetryGroup(myHash)
+//    mySymGroups[myHash]=mySymGroup
+    mySymGroups[mySymGroup]=mySymGroup
+}
+let result = []
+mySymGroups.forEach(v => result.push(v))
+console.log(result)
+*/
+let rh = TOOLS.rotationsToHash([0,9])
+let sgid = TOOLS.SymmetryGroups.indexOf(rh)
+console.log(TOOLS.SymmetryGroupPartitionMaps[sgid])
+
+//console.log(JSON.stringify(TOOLS.DoubleRotationMatrix))
+//console.log("done")
 //theXMPuzzle.comment.set("uri", "/puzzle/loc")
 //theXMPuzzle.problems.problem[0].shapes.shape[0].group=0
 //theXMPuzzle.problems.problem[0].shapes.shape[0].group=2

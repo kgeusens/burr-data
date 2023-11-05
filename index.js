@@ -1,5 +1,5 @@
 import {XMLBuilder, XMLParser} from 'fast-xml-parser';
-import {rotate, rotatePoint, translate, translatePoint, rotateMap, translateMap, DoubleRotationMatrix, SymmetryGroups } from './burrUtils.js'
+import {rotate, rotatePoint, translatePoint, DoubleRotationMatrix, SymmetryMap, rotationsToHash, SymmetryGroups } from './burrUtils.js'
 
 const XMLAlwaysArrayName = [
 	"voxel",
@@ -404,7 +404,7 @@ export class Voxel {
 			}
 			// when we get here, symmetric determines symmetry in rotidx
 			if (symmetric) {
-				let newSymmetryGroup = SymmetryGroups[rotidx]
+				let newSymmetryGroup = SymmetryMap[rotidx]
 				// first mark all the double rotation combinations with the new group
 				for (let n of newSymmetryGroup) {
 					for (let r of symmetryMembers) {
@@ -415,7 +415,7 @@ export class Voxel {
 			}
 			next++
 		}
-		return symmetryMembers
+		return SymmetryGroups.indexOf(rotationsToHash(symmetryMembers))
 	}
 	get stateString() {
 		let ss = ""

@@ -1,6 +1,6 @@
 import * as DATA from '../index.js'
 import { readFileSync} from 'fs'
-import { rotatePoint, rotate, calcRotationsToCheck, DoubleRotationMatrix, calcSymPartitionMap } from '../burrUtils.js'
+import { rotatePoint, rotate, RotationsToCheck, DoubleRotationMatrix } from '../burrUtils.js'
 import * as DLX from 'dancing-links'
 import { log } from 'console'
 
@@ -92,8 +92,8 @@ class Assembler {
         for (let psid in this._cache._shapeMap) { // problemshapes //KG
             psid = Number(psid)
             // we do not need to check every single rotation, but simplify based on symmetries
-            let syms = this._cache.getShapeInstance(psid, 0)._voxel.calcSelfSymmetries()
-            let rotlist = calcRotationsToCheck(syms)
+            let symgroupID = this._cache.getShapeInstance(psid, 0)._voxel.calcSelfSymmetries()
+            let rotlist = RotationsToCheck[symgroupID]
             for (let rotidx of rotlist) { // 24 rotations each
 //            for (let rotidx=0;rotidx<24;rotidx++) { // 24 rotations each
 //                console.log("psid", psid, "rot", rotidx)
@@ -741,8 +741,8 @@ class Solver {
         return true
     }
     solveAll() {
-        let all = this.assembler.uniqueAssemblies
-//        let all = this.assembler.assemblies
+//        let all = this.assembler.uniqueAssemblies
+        let all = this.assembler.assemblies
         for (let idx=0; idx<all.length; idx++) {
 //        for (let idx=0; idx<22016; idx++) {
             if (DEBUG) console.log("solving assembly", idx)
@@ -770,7 +770,6 @@ const theXMPuzzle = DATA.Puzzle.puzzleFromXML(xmpuzzleFile)
 let s = new Solver(theXMPuzzle)
 
 console.time("assemble")
-console.log(s.assembler.uniqueAssemblies.length)
 console.log(s.assembler.assemblies.length)
 console.timeEnd("assemble")
 

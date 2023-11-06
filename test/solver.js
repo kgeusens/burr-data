@@ -1,6 +1,6 @@
 import * as DATA from '../index.js'
 import { readFileSync} from 'fs'
-import { rotatePoint, rotate, RotationsToCheck, DoubleRotationMatrix } from '../burrUtils.js'
+import { rotatePoint, rotate, RotationsToCheck, DoubleRotationMatrix, reduceRotations } from '../burrUtils.js'
 import * as DLX from 'dancing-links'
 import { log } from 'console'
 
@@ -85,17 +85,57 @@ class Assembler {
         let r = new DATA.VoxelInstance(
             { voxel:this._cache.resultVoxel } )
         let rbb = r.boundingBox
-//        let rsyms=r._voxel.calcSelfSymmetries()
         let matrix = []
         // make use of selfsymmetries of pieces
         // if a piece is selfsymmetric, we can leave out a number of symmetries to check.
+        // Before we start we can heavily optimize for symmetric puzzles using the idea of
+        // a symmetryBreaker: find the piece with the longest "rotations to check" relative to the solution's selfsymmetries
+        // and update it's "rotations to check"
+        let rotationLists=[]
+        let voxel
+        let breakerID = -1
+        let breakerReduction = 0
+        let breakerSize = 30000
+        let symgroupID
+        let rotlist
+        let rotlistLength
+        let reducedRotlist
+        let reducedRotlistLength
+        let rsymgroupID=r._voxel.calcSelfSymmetries()
+        for (let psid in this._cache._shapeMap) {
+            voxel = this._cache.getShapeInstance(psid, 0)._voxel
+            symgroupID = voxel.calcSelfSymmetries()
+            rotlist = RotationsToCheck[symgroupID]
+            rotlistLength = rotlist.length
+            reducedRotlist = reduceRotations(rsymgroupID, rotlist)
+            reducedRotlistLength = reducedRotlist.length
+            rotationLists[psid]=[...rotlist]
+            if ((rotlistLength - reducedRotlistLength) >=  breakerReduction) {
+                if ((rotlistLength - reducedRotlistLength) ==  breakerReduction) {
+                    if (voxel.size < breakerSize) {
+                        breakerSize = voxel.size
+                        breakerID = psid
+                    }
+                }
+                else {
+                    breakerID=psid
+                    breakerReduction = rotlistLength - reducedRotlistLength
+                }
+            }
+            console.log(psid, rotlistLength, reducedRotlist.length, voxel.size)
+//            console.log(voxel) // want to check number of voxels
+        }
+        // reduce the breaker
+        if (breakerID >= 0) { 
+            rotationLists[breakerID] = reduceRotations(rsymgroupID, rotationLists[breakerID])
+            console.log(rotationLists[breakerID])
+        }
+        console.log(breakerID)
         for (let psid in this._cache._shapeMap) { // problemshapes //KG
             psid = Number(psid)
             // we do not need to check every single rotation, but simplify based on symmetries
-            let symgroupID = this._cache.getShapeInstance(psid, 0)._voxel.calcSelfSymmetries()
-            let rotlist = RotationsToCheck[symgroupID]
-            for (let rotidx of rotlist) { // 24 rotations each
-//            for (let rotidx=0;rotidx<24;rotidx++) { // 24 rotations each
+            let rotlist = rotationLists[psid]
+            for (let rotidx of rotlist) { 
 //                console.log("psid", psid, "rot", rotidx)
                 let rotatedInstance = this._cache.getShapeInstance(psid, rotidx) // KG
                 let pbb = rotatedInstance.boundingBox

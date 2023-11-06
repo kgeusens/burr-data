@@ -369,6 +369,32 @@ export const RotationsToCheck =
   [ 0, 1 ],
   [ 0 ]
 ]
+
+export function reduceRotations(symgroupID, rotlist) {
+  let symGroup = SymmetryGroups[symgroupID]
+  let symmetryMembers = hashToRotations(symGroup)
+  let skipMatrix = new Array(24)
+  let sym=0
+  for (let i=0;i<24;i++) {
+    if (!rotlist.includes(i)) skipMatrix[i] = true
+  }
+  for (let rot = 0;rot < 24; rot++) {
+    if (!skipMatrix[rot]) {
+      for (let idx=1;idx<symmetryMembers.length;idx++) {
+        sym = symmetryMembers[idx]
+        let res = DoubleRotationMatrix[sym + 24*rot]
+        skipMatrix[res] = true
+      }
+    }
+  }
+  // now we have the ones to skip, but we need the ones to check
+  let result = []
+  for (let rot = 0;rot < 24; rot++) {
+    if (!skipMatrix[rot]) result.push(rot)
+  }
+  return result
+}
+
 /*
 export function calcRotationsToCheck() {
   let rotationsToCheck=[]

@@ -345,6 +345,7 @@ export class Voxel {
 		this["@attributes"].y = y
 		this["@attributes"].z = z
 	}
+	get size() {return this.private.worldmap.size}
 	calcSelfSymmetries() {
 		// boundingbox always has min at [0,0,0] and max at [x,y,z]
 
@@ -1523,8 +1524,8 @@ export class GroupMap {
 }
 
 export class PieceMap {
-	_map // Map
-	_varimap // Map
+	_map // Set
+	_varimap // Set
     static worldOrigin=100
 	// coordinates range is [-worldOrigin ..0.. +worldOrigin]
     static worldMax=2*PieceMap.worldOrigin + 1
@@ -1553,10 +1554,7 @@ export class PieceMap {
 		}
 	}
     get size() { 
-        let count=0; 
-        this._map.forEach(v => count++)
-        this._varimap.forEach(v => count++)
-        return count
+        return this._map.size + this._varimap.size
     }
     get boundingBox() {
         let bb = new BoundingBox()

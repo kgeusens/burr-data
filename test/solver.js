@@ -18,54 +18,6 @@ class Assembler {
         if (!this._assemblies) this._assemblies=this.assemble()
         return this._assemblies
     }
-    get uniqueAssemblies() {
-        // The unique hash of an assembly can be defined by the sorted sequence of shapid + shaperotation
-        //Remove rotations if resultVoxel is symmetric
-        let len = this.assemblies.length
-        let asm
-        let hash
-        let symrot
-        let cache={}
-        let rVoxelSyms = new DATA.VoxelInstance({ voxel:this._cache.resultVoxel })._voxel.calcSelfSymmetries()
-        let newrot
-        let result = []
-        // KG : if rVoxelSyms is [0] only, we should skip this step
-        if (rVoxelSyms.length <= 1) return this.assemblies
-        for (let idx=0;idx < len;idx++) {
-            // loop over all the assemblies
-            // We check if the rotated id is already in the cache.
-            // * if it is: skip, this is not unique
-            // * if it is: add it to the cache, keep it in the results, and process the rotations
-            //      - no need to calc "rotidx 0" because that has no effect (already cached)
-            //      - rotate the pieces, calc the new id, and mark it in the cache
-            asm = this.assemblies[idx]
-            // asm = [ { index: int, data: {id: int, rotation: int} } ]
-            // asm should be sorted by data.id so creating the hash is easy
-            // We still need to take selfymmetries of individual pieces into account
-            // this quickly becomes a very expensive operation O(n2)
-            for (let symidx=0; symidx <rVoxelSyms.length ; symidx++) {
-                symrot = rVoxelSyms[symidx]
-                hash = "id"
-                for (let i=0;i<asm.length;i++) {
-                    newrot = DoubleRotationMatrix[asm[i].data.rotation*24 + symrot]
-                    // newrot needs to be mapped using calcSymPartitionMap using the self Symmetries of the piece.
-                    // we can access this from the cache using the shapeid and rotation
-//                    let syms = this._cache.getShapeInstance(asm[i].data.id, 0)._voxel.calcSelfSymmetries()
-//                    hash += " " + asm[i].data.id + " " + calcSymPartitionMap(syms)[newrot]
-                    hash += " " + asm[i].data.id + " " + newrot
-                }
-                if (symrot == 0) {
-                    if (cache[hash]) {
-                        break
-                    } 
-                    else result.push(asm)
-                }
-                cache[hash] = true
-            }
-        }
-        //Remove permutations of identical instances (shapes with count > 1)
-        return result
-    }
     sort(asm) {
         // asm = [ { index: int, data: {id: int, rotation: int} } ]
         // in place sort of the asm array, sorted by data.id
@@ -91,6 +43,7 @@ class Assembler {
         // Before we start we can heavily optimize for symmetric puzzles using the idea of
         // a symmetryBreaker: find the piece with the longest "rotations to check" relative to the solution's selfsymmetries
         // and update it's "rotations to check"
+        if (DEBUG) console.log("find breaker")
         let rotationLists=[]
         let voxel
         let breakerID = -1
@@ -122,15 +75,15 @@ class Assembler {
                     breakerReduction = rotlistLength - reducedRotlistLength
                 }
             }
-            console.log(psid, rotlistLength, reducedRotlist.length, voxel.size)
+            if (DEBUG) console.log(psid, rotlistLength, reducedRotlist.length, voxel.size)
 //            console.log(voxel) // want to check number of voxels
         }
         // reduce the breaker
         if (breakerID >= 0) { 
             rotationLists[breakerID] = reduceRotations(rsymgroupID, rotationLists[breakerID])
-            console.log(rotationLists[breakerID])
+            if (DEBUG) console.log(rotationLists[breakerID])
         }
-        console.log(breakerID)
+        if (DEBUG) console.log("breaker", breakerID)
         for (let psid in this._cache._shapeMap) { // problemshapes //KG
             psid = Number(psid)
             // we do not need to check every single rotation, but simplify based on symmetries
@@ -480,7 +433,7 @@ class MovementCache {
             moves = [mx, my, mz]
             this._movementCache[hash] = moves
         }
-        return [moves[0], moves[1], moves[2]]
+        return moves
     }
 }
 
@@ -781,7 +734,6 @@ class Solver {
         return true
     }
     solveAll() {
-//        let all = this.assembler.uniqueAssemblies
         let all = this.assembler.assemblies
         for (let idx=0; idx<all.length; idx++) {
 //        for (let idx=0; idx<22016; idx++) {

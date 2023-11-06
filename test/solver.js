@@ -84,6 +84,9 @@ class Assembler {
             if (DEBUG) console.log(rotationLists[breakerID])
         }
         if (DEBUG) console.log("breaker", breakerID)
+        //
+        // Now start building the DLXmatrix
+        //
         for (let psid in this._cache._shapeMap) { // problemshapes //KG
             psid = Number(psid)
             // we do not need to check every single rotation, but simplify based on symmetries
@@ -325,6 +328,7 @@ class MovementCache {
         this._problemIndex = problemIdx
         this._shapeMap=this.problem.shapeMap
     }
+    get shapeCount() { return this._shapeMap.length }
 
     getShapeInstance(id, rot) {
         // id is the index into shapeMap 
@@ -336,6 +340,11 @@ class MovementCache {
         }
         return instance
     }
+    calcHash(id1, rot1, id2, rot2, dx, dy, dz) {
+        let idSize = this.shapeCount
+        let hash = (((id1*24+rot1)*idSize+ id2)*24 + rot2)*DATA.PieceMap.worldSize + DATA.PieceMap.XYZToHash(dx, dy, dz)
+        return hash
+    }
     getMaxValues(id1, rot1, id2, rot2, dx, dy, dz) {
         // calculates and caches how far piece1 can move in positive directions before hitting piece2
         // [dx, dy, dz] is the relative offset of piece2 compared to piece1
@@ -343,7 +352,8 @@ class MovementCache {
         // Means when we calculate the positive direction of p1 -> p2, we also know the negative direction of p2 -> p1
         // therefor we only cache positive directions.
         // If ever you need to lookup a negative direction, just swap the positions of the 2 pieces before lookup
-        let hash = id1 + " " + rot1 + " " + id2 + " " + rot2 + " " + dx + " " + dy + " " + dz
+        let idSize = this.shapeCount
+        let hash = (((id1*24+rot1)*idSize+ id2)*24 + rot2)*DATA.PieceMap.worldSize + DATA.PieceMap.XYZToHash(dx, dy, dz)
         let moves = this._movementCache[hash]
         if (!moves) {
             let s1 = this.getShapeInstance(id1, rot1)
@@ -355,21 +365,25 @@ class MovementCache {
             let s1wm = s1._worldMap
             let s2wm = s2._worldMap
             let mx=32000; let my=32000; let mz=32000
-            intersection.min[0] = Math.max(bb1.min[0], bb2.min[0] + dx)
-            intersection.min[1] = Math.max(bb1.min[1], bb2.min[1] + dy)
-            intersection.min[2] = Math.max(bb1.min[2], bb2.min[2] + dz)
-            intersection.max[0] = Math.min(bb1.max[0], bb2.max[0] + dx)
-            intersection.max[1] = Math.min(bb1.max[1], bb2.max[1] + dy)
-            intersection.max[2] = Math.min(bb1.max[2], bb2.max[2] + dz)
-            union.min[0] = Math.min(bb1.min[0], bb2.min[0] + dx)
-            union.min[1] = Math.min(bb1.min[1], bb2.min[1] + dy)
-            union.min[2] = Math.min(bb1.min[2], bb2.min[2] + dz)
-            union.max[0] = Math.max(bb1.max[0], bb2.max[0] + dx)
-            union.max[1] = Math.max(bb1.max[1], bb2.max[1] + dy)
-            union.max[2] = Math.max(bb1.max[2], bb2.max[2] + dz)
-            let yStart=intersection.min[1];let yStop=intersection.max[1]
-            let zStart=intersection.min[2];let zStop=intersection.max[2]
-            let xStart=union.min[0];let xStop=union.max[0]
+            let imin = intersection.min
+            let imax = intersection.max
+            let umin = union.min
+            let umax = union.max
+            imin[0] = Math.max(bb1.min[0], bb2.min[0] + dx)
+            imin[1] = Math.max(bb1.min[1], bb2.min[1] + dy)
+            imin[2] = Math.max(bb1.min[2], bb2.min[2] + dz)
+            imax[0] = Math.min(bb1.max[0], bb2.max[0] + dx)
+            imax[1] = Math.min(bb1.max[1], bb2.max[1] + dy)
+            imax[2] = Math.min(bb1.max[2], bb2.max[2] + dz)
+            umin[0] = Math.min(bb1.min[0], bb2.min[0] + dx)
+            umin[1] = Math.min(bb1.min[1], bb2.min[1] + dy)
+            umin[2] = Math.min(bb1.min[2], bb2.min[2] + dz)
+            umax[0] = Math.max(bb1.max[0], bb2.max[0] + dx)
+            umax[1] = Math.max(bb1.max[1], bb2.max[1] + dy)
+            umax[2] = Math.max(bb1.max[2], bb2.max[2] + dz)
+            let yStart=imin[1];let yStop=imax[1]
+            let zStart=imin[2];let zStop=imax[2]
+            let xStart=umin[0];let xStop=umax[0]
             for (let y = yStart; y<=yStop;y++) {
                 for (let z = zStart; z<=zStop;z++) {
                     let gap = 32000
@@ -388,9 +402,9 @@ class MovementCache {
                     }
                 }
             }
-            xStart=intersection.min[0];xStop=intersection.max[0]
-            zStart=intersection.min[2];zStop=intersection.max[2]
-            yStart=union.min[1];yStop=union.max[1]
+            xStart=imin[0];xStop=imax[0]
+            zStart=imin[2];zStop=imax[2]
+            yStart=umin[1];yStop=umax[1]
             for (let x = xStart; x<=xStop;x++) {
                 for (let z = zStart; z<=zStop;z++) {
                     let gap = 32000
@@ -409,9 +423,9 @@ class MovementCache {
                     }
                 }
             }
-            xStart=intersection.min[0];xStop=intersection.max[0]
-            yStart=intersection.min[1];yStop=intersection.max[1]
-            zStart=union.min[2];zStop=union.max[2]
+            xStart=imin[0];xStop=imax[0]
+            yStart=imin[1];yStop=imax[1]
+            zStart=umin[2];zStop=umax[2]
             for (let x = xStart; x<=xStop;x++) {
                 for (let y = yStart; y<=yStop;y++) {
                     let gap = 32000
@@ -552,20 +566,13 @@ class Solver {
             --->i
             |
             j
-
             [
             [ 0, 0, 0 ], [ 0, 3, 1 ], [ 0, 3, 0 ], [ 0, 3, 0 ], [ 0, 3, 0 ], [ 0, 3, 0 ], [ 0, 3, 0 ], 
-
             [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ],
-
             [ 0, 0, 0 ], [ 0, 0, 1 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], 
-
             [ 0, 0, 0 ], [ 0, 0, 1 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ],
-
             [ 0, 0, 0 ], [ 0, 0, 1 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ],
-
             [ 0, 0, 0 ], [ 0, 0, 1 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ],
-
             [ 0, 0, 0 ], [ 0, 0, 1 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ]
             ]
 
@@ -598,11 +605,9 @@ class Solver {
         // Rows first
         for (let dim = 0;dim <3; dim++) {
             for (let k = 0; k<nPieces; k++) { // overloop kolom k (positieve beweging) of rij k (negatieve beweging) inclusief jezelf (=altijd 0)
-                k=Number(k)
                 let pRow=[]
                 let vMoveRow
                 for (let i=0;i<nPieces;i++) {
-                    i=Number(i);
                     let vRow = matrix[k*numRow + i*3 + dim]
                     if (vRow == 0) pRow.push(i) // onthoud de posities ([p]) met waarde = 0
                     else vMoveRow = Math.min(vRow, vMoveRow?vMoveRow:30000) //onthoud de kleinste ">0" waarde (vmove).

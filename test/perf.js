@@ -21,6 +21,7 @@ class testSparseArray {
     delete(idx) {
         delete this.container[idx + indexOffset]
     }
+    get (idx) { return this.container[idx + indexOffset]}
 }
 
 class testArray {
@@ -53,6 +54,7 @@ class testArray {
     deleteLast(idx) {
         return this.container.splice(1,1)
     }
+    get(idx) { return this.container[idx]}
 }
 
 class testObject {
@@ -62,7 +64,8 @@ class testObject {
         this.container = {}
     }
     add(idx,val) {
-        this.container[idx]=val
+
+        this.container[idx + indexOffset]=val
     }
     has(val) {
         return this.container[val]
@@ -77,7 +80,7 @@ class testObject {
         delete this.container[idx]
     }
     get(idx) {
-        return this.container[idx]
+        return this.container[idx + indexOffset]
     }
 }
 
@@ -115,7 +118,7 @@ class testMap {
         this.container = new Map()
     }
     add(idx,val) {
-        this.container.set(idx,val)
+        this.container.set("id "+ idx,val)
     }
     has(val) {
         return this.container.has(val)
@@ -132,7 +135,7 @@ class testMap {
     delete(idx) {
         return this.container.delete(idx)
     }
-    get(idx) { return this.container.get(idx) }
+    get(idx) { return this.container.get("id " + idx) }
 }
 
 
@@ -143,17 +146,17 @@ let m = new testMap()
 let o = new testObject()
 let sa = new testSparseArray()
 
-let containers = [o,m]
+let containers = [o,a,sa, m]
 //let containers = [sa, a, s, m, o]
 
-const mapLength=162
-const indexOffset=4000000
-const runLength=37000
+const mapLength=66204
+const indexOffset=201*201*201
+const runLength=378
 
 console.profile()
 for (let idx=mapLength; idx >=0; idx--) {
     for (let c of containers) {
-        c.add("id "+idx,idx)
+        c.add(idx,idx)
     }
 }
 for (let c of containers) {
@@ -162,7 +165,7 @@ for (let c of containers) {
         for (let idx=mapLength; idx >=1; idx--) {
 //            if (!c.has(idx)) throw(c.type + ".has(" +idx+ ") returned false")
 //            if (c.hasNot(-1*idx)) throw(c.type + ".hasNot(" +idx+ ") returned true")
-            if (c.get("id "+idx) != idx) throw ("error")
+            if (c.get(idx) != idx) throw ("error")
         }
 //        c.iterate()
     }
